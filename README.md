@@ -28,3 +28,16 @@ npm install --save-dev nodemon
 cd client
 npm install @apollo/client graphql tailwindcss chart.js
 ```
+
+## Start the mongodb service
+
+```
+brew services start mongodb-community@6.0
+```
+
+## Check if it's running
+
+```
+brew services list 
+```
+

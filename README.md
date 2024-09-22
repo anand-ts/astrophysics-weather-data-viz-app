@@ -41,3 +41,5 @@ brew services start mongodb-community@6.0
 brew services list 
 ```
 
+backend: npm start
+frontend: npm start

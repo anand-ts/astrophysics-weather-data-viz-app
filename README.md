@@ -41,5 +41,11 @@ brew services start mongodb-community@6.0
 brew services list 
 ```
 
+check if the data has been imported using mongo shell:
+    mongosh
+    use data_stream (this is the database name)
+    show collections
+    db.weather_data.find().pretty() (shows a bit of the document)
+
 backend: npm start
 frontend: npm start

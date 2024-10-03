@@ -12,21 +12,47 @@
 // );
 
 // src/index.js
+// import React from 'react';
+// import ReactDOM from 'react-dom';
+// import './index.css';
+// import App from './App';
+// import { ApolloProvider } from '@apollo/client';
+// import client from './apolloClient';
+
+// ReactDOM.render(
+//   <React.StrictMode>
+//     <ApolloProvider client={client}>
+//       <App />
+//     </ApolloProvider>
+//   </React.StrictMode>,
+//   document.getElementById('root')
+// );
+
+
+
+// src/index.js
 import React from 'react';
-import ReactDOM from 'react-dom';
+import ReactDOM from 'react-dom/client'; // Updated import path for React 18
 import './index.css';
 import App from './App';
 import { ApolloProvider } from '@apollo/client';
 import client from './apolloClient';
 
-ReactDOM.render(
+// Locate the root element in your HTML
+const container = document.getElementById('root');
+
+// Create a root.
+const root = ReactDOM.createRoot(container);
+
+// Initial render: Render the App component wrapped with ApolloProvider
+root.render(
   <React.StrictMode>
     <ApolloProvider client={client}>
       <App />
     </ApolloProvider>
-  </React.StrictMode>,
-  document.getElementById('root')
+  </React.StrictMode>
 );
+
 
 
 

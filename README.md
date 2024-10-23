@@ -49,3 +49,11 @@ check if the data has been imported using mongo shell:
 
 backend: npm start
 frontend: npm start
+
+
+
+duration (15 days etc.)
+moving avg. should be at the front, fix the bug
+date range clipping, fix the bug
+double graphs, two vars., comparison between two teles
+    one on top, and overlapping, simultaneous.

@@ -7,19 +7,22 @@ import 'chart.js/auto';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format } from 'date-fns';
+import ReactDOM from 'react-dom';
 
 // Import the logo image
 import blackHoleLogo from './assets/black_hole.jpg'; // Ensure the path is correct
 
 function App() {
-  const [selectedVariable, setSelectedVariable] = useState(null);
+  const [selectedVariables, setSelectedVariables] = useState([]);
   const [showMovingAverage, setShowMovingAverage] = useState(false);
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
+  const [limit, setLimit] = useState(5000); // Introduce state for limit
 
   const { loading, error, data, refetch } = useQuery(GET_WEATHER_DATA, {
     variables: {
-      limit: 100000, // Adjust as needed
+      // limit: 10000, // Adjust as needed
+      limit,
       startDate: startDate ? format(startDate, 'yyyy-MM-dd HH:mm:ss') : null,
       endDate: endDate ? format(endDate, 'yyyy-MM-dd HH:mm:ss') : null,
     },
@@ -28,15 +31,21 @@ function App() {
 
   useEffect(() => {
     refetch({
-      limit: 10000,
+      // limit: 10000,
+      limit,
       startDate: startDate ? format(startDate, 'yyyy-MM-dd HH:mm:ss') : null,
       endDate: endDate ? format(endDate, 'yyyy-MM-dd HH:mm:ss') : null,
     });
   }, [startDate, endDate, refetch]);
 
-  const handleVariableClick = (variable) => {
-    setSelectedVariable(variable);
-    setShowMovingAverage(false); // Reset moving average when selecting a new variable
+  const handleVariableChange = (event) => {
+    const { value, checked } = event.target;
+    if (checked) {
+      setSelectedVariables((prev) => [...prev, value]);
+    } else {
+      setSelectedVariables((prev) => prev.filter((item) => item !== value));
+    }
+    setShowMovingAverage(false); // Reset moving average when variables change
   };
 
   const handleMovingAverageToggle = () => {
@@ -44,37 +53,43 @@ function App() {
   };
 
   const calculateMovingAverage = (data, windowSize = 5) => {
-    if (!data || data.length === 0) return [];
+    if (!data || data.length === 0) return {};
 
-    const averages = [];
+    const averages = {};
 
-    for (let i = 0; i < data.length; i++) {
-      // Define the window slice
-      const window = data.slice(i - windowSize + 1, i + 1);
+    selectedVariables.forEach((variable) => {
+      averages[variable] = [];
 
-      // Filter out 0 and undefined/null values
-      const validValues = window.filter(value => value !== 0 && value !== undefined && value !== null);
+      for (let i = 0; i < data.length; i++) {
+        // Define the window slice
+        const window = data.slice(i - windowSize + 1, i + 1);
 
-      if (validValues.length === 0) {
-        averages.push(null); // Not enough valid data to calculate average
-        continue;
+        // Filter out 0 and undefined/null values
+        const validValues = window
+          .map((entry) => entry[variable])
+          .filter((value) => value !== 0 && value !== undefined && value !== null);
+
+        if (validValues.length === 0) {
+          averages[variable].push(null); // Not enough valid data to calculate average
+          continue;
+        }
+
+        // Calculate the average of valid values
+        const sum = validValues.reduce((acc, curr) => acc + curr, 0);
+        const avg = sum / validValues.length;
+
+        averages[variable].push(avg);
       }
-
-      // Calculate the average of valid values
-      const sum = validValues.reduce((acc, curr) => acc + curr, 0);
-      const avg = sum / validValues.length;
-
-      averages.push(avg);
-    }
+    });
 
     return averages;
   };
 
   const getChartData = () => {
-    if (!data || !selectedVariable) return {};
+    if (!data || selectedVariables.length === 0) return {};
 
     // Filter data based on selected date range
-    const filteredData = data.getWeatherData.filter(entry => {
+    const filteredData = data.getWeatherData.filter((entry) => {
       const entryDate = new Date(Number(entry.wdatetime)); // Convert string to number
       if (startDate && entryDate < startDate) return false;
       if (endDate && entryDate > endDate) return false;
@@ -82,46 +97,71 @@ function App() {
     });
 
     // Remove entries with null or undefined wdatetime
-    const cleanedData = filteredData.filter(entry => entry.wdatetime);
+    const cleanedData = filteredData.filter((entry) => entry.wdatetime);
 
-    const labels = cleanedData.map(entry => new Date(Number(entry.wdatetime)).toLocaleString());
-    const values = cleanedData.map(entry => entry[selectedVariable] !== undefined ? entry[selectedVariable] : 0);
-
-    // Debugging logs
-    console.log('Filtered Data:', cleanedData);
-    console.log('Labels:', labels);
-    console.log('Values:', values);
+    const labels = cleanedData.map((entry) =>
+      new Date(Number(entry.wdatetime)).toLocaleString()
+    );
 
     const chartData = {
       labels,
-      datasets: [
-        {
-          label: selectedVariable.replace('_', ' ').toUpperCase(),
-          data: values,
-          fill: false,
-          backgroundColor: 'rgba(75,192,192,0.4)',
-          borderColor: 'rgba(75,192,192,1)',
-          tension: 0.1, // Smooth curves
-          spanGaps: true, // Connect points with null values
-        },
-      ],
+      datasets: [],
     };
 
-    if (showMovingAverage) {
-      const movingAverage = calculateMovingAverage(values, 5); // Window size of 5
-      console.log('Moving Average:', movingAverage);
+    selectedVariables.forEach((variable, index) => {
+      const values = cleanedData.map(
+        (entry) => (entry[variable] !== undefined ? entry[variable] : null)
+      );
+
       chartData.datasets.push({
-        label: `${selectedVariable.replace('_', ' ').toUpperCase()} (5-point MA)`,
-        data: movingAverage,
+        label: variables.find((v) => v.value === variable).label,
+        data: values,
         fill: false,
-        backgroundColor: 'rgba(255,99,132,0.4)',
-        borderColor: 'rgba(255,99,132,1)',
-        tension: 0.1,
+        backgroundColor: getColor(index),
+        borderColor: getColor(index),
+        borderWidth: 1,
+        pointRadius: 1,
+        pointHoverRadius: 8,
+        tension: 0.1, // Smooth curves
         spanGaps: true, // Connect points with null values
+        yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
       });
-    }
+
+      if (showMovingAverage) {
+        const movingAverage = calculateMovingAverage(cleanedData, 5)[variable];
+        chartData.datasets.push({
+          label: `${variables.find((v) => v.value === variable).label} (5-point MA)`,
+          data: movingAverage,
+          fill: false,
+          backgroundColor: getColor(index, true),
+          borderColor: getColor(index, true),
+          borderWidth: 2,
+          tension: 0.1,
+          spanGaps: true, // Connect points with null values
+          yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
+        });
+      }
+    });
 
     return chartData;
+  };
+
+  const getColor = (index, isMovingAverage = false) => {
+    const colors = [
+      'rgba(75,192,192,1)',
+      'rgba(255,99,132,1)',
+      'rgba(54,162,235,1)',
+      'rgba(255,206,86,1)',
+      'rgba(153,102,255,1)',
+      'rgba(255,159,64,1)',
+    ];
+
+    if (isMovingAverage) {
+      return colors[index % colors.length].replace('1)', '0.4)');
+      // return 'rgba(255,0,0,1)'; // Fixed red for moving average
+    }
+
+    return colors[index % colors.length];
   };
 
   const variables = [
@@ -152,32 +192,33 @@ function App() {
       {/* Main Layout */}
       <div className="flex flex-col md:flex-row flex-1">
         {/* Sidebar */}
-        <div className="md:w-1/4 bg-gray-100 p-4 overflow-auto border-r">
+        <div className="md:w-1/4 lg:w-1/5 bg-gray-100 p-4 overflow-auto border-r">
           <h2 className="text-xl font-semibold mb-4">Variables</h2>
           <div className="flex flex-col space-y-2">
-            {variables.map(varItem => (
-              <button
-                key={varItem.value}
-                onClick={() => handleVariableClick(varItem.value)}
-                className={`px-4 py-2 rounded text-left ${selectedVariable === varItem.value
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-              >
-                {varItem.label}
-              </button>
+            {variables.map((varItem) => (
+              <label key={varItem.value} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  value={varItem.value}
+                  checked={selectedVariables.includes(varItem.value)}
+                  onChange={handleVariableChange}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                />
+                <span className="text-gray-700">{varItem.label}</span>
+              </label>
             ))}
           </div>
 
           {/* Moving Average Toggle */}
-          {selectedVariable && (
+          {selectedVariables.length > 0 && (
             <div className="mt-6">
               <button
                 onClick={handleMovingAverageToggle}
-                className={`w-full px-4 py-2 rounded text-left ${showMovingAverage
+                className={`w-full px-4 py-2 rounded text-left ${
+                  showMovingAverage
                     ? 'bg-red-500 text-white hover:bg-red-600'
                     : 'bg-green-500 text-white hover:bg-green-600'
-                  }`}
+                }`}
               >
                 {showMovingAverage ? 'Hide Moving Average' : 'Show Moving Average'}
               </button>
@@ -198,9 +239,9 @@ function App() {
                   endDate={endDate}
                   showTimeSelect
                   dateFormat="Pp"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
                   placeholderText="Select start date"
-                  popperPlacement="bottom-end" // Added this line
+                  popperPlacement="bottom-end" // Simple fix for clipping
                 />
               </div>
               <div>
@@ -214,9 +255,9 @@ function App() {
                   minDate={startDate}
                   showTimeSelect
                   dateFormat="Pp"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
                   placeholderText="Select end date"
-                  popperPlacement="bottom-end" // Added this line
+                  popperPlacement="bottom-end" // Simple fix for clipping
                 />
               </div>
             </div>
@@ -224,8 +265,8 @@ function App() {
         </div>
 
         {/* Main Content */}
-        <div className="md:w-3/4 p-6 overflow-auto">
-          {selectedVariable ? (
+        <div className="md:w-3/4 lg:w-4/5 p-6 overflow-auto">
+          {selectedVariables.length > 0 ? (
             <div className="bg-white p-4 rounded shadow h-full" style={{ height: '500px' }}>
               <Line
                 data={getChartData()}
@@ -238,35 +279,41 @@ function App() {
                     },
                     title: {
                       display: true,
-                      text: selectedVariable.replace('_', ' ').toUpperCase(),
+                      text:
+                        selectedVariables.length === 1
+                          ? variables.find((v) => v.value === selectedVariables[0]).label
+                          : 'Selected Variables Comparison',
                     },
                   },
-                  scales: {
-                    x: {
-                      title: {
-                        display: true,
-                        text: 'Date and Time',
+                  scales: selectedVariables.length > 1
+                    ? selectedVariables.reduce((acc, variable, index) => {
+                        acc[`y-axis-${index}`] = {
+                          type: 'linear',
+                          position: index % 2 === 0 ? 'left' : 'right',
+                          grid: {
+                            drawOnChartArea: index === 0, // Only draw grid on the first y-axis
+                          },
+                          title: {
+                            display: true,
+                            text: variables.find((v) => v.value === variable).label,
+                          },
+                        };
+                        return acc;
+                      }, {})
+                    : {
+                        y: {
+                          title: {
+                            display: true,
+                            text: variables.find((v) => v.value === selectedVariables[0]).label,
+                          },
+                          beginAtZero: false,
+                        },
                       },
-                      ticks: {
-                        maxTicksLimit: 20, // Limit the number of ticks for better readability
-                      },
-                    },
-                    y: {
-                      title: {
-                        display: true,
-                        text: selectedVariable.replace('_', ' ').toUpperCase(),
-                      },
-                      beginAtZero: false,
-                      // Optionally, set min and max based on data
-                      // min: 250,
-                      // max: 300,
-                    },
-                  },
                 }}
               />
             </div>
           ) : (
-            <p className="text-center text-gray-500">Select a variable to display the graph.</p>
+            <p className="text-center text-gray-500">Select one or more variables to display the graph.</p>
           )}
         </div>
       </div>

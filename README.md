@@ -1,6 +1,8 @@
-# MongoDB data pipeline
+# GT X-treme Astrophysics Data Visualization App
 
 ## This is W.I.P
+
+![Demo Screenshot](frontend/src/assets/demo_screenshot.png)
 
 ## Create Conda environment for the MongoDB Data Pipeline
 
@@ -41,19 +43,9 @@ brew services start mongodb-community@6.0
 brew services list 
 ```
 
-check if the data has been imported using mongo shell:
-    mongosh
-    use data_stream (this is the database name)
-    show collections
-    db.weather_data.find().pretty() (shows a bit of the document)
+## Start backend/frontend services
 
-backend: npm start
-frontend: npm start
-
-
-
-duration (15 days etc.)
-moving avg. should be at the front, fix the bug
-date range clipping, fix the bug
-double graphs, two vars., comparison between two teles
-    one on top, and overlapping, simultaneous.
+```
+npm start backend
+npm start frontend
+```

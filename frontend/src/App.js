@@ -6,8 +6,8 @@ import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { format } from 'date-fns';
 import ReactDOM from 'react-dom';
+import { format } from 'date-fns';
 
 // Import the logo image
 import blackHoleLogo from './assets/black_hole.jpg'; // Ensure the path is correct
@@ -15,13 +15,13 @@ import blackHoleLogo from './assets/black_hole.jpg'; // Ensure the path is corre
 function App() {
   const [selectedVariables, setSelectedVariables] = useState([]);
   const [showMovingAverage, setShowMovingAverage] = useState(false);
+  const [movingAverageWindow, setMovingAverageWindow] = useState(5); // New state for window size
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [limit, setLimit] = useState(5000); // Introduce state for limit
+  const [limit, setLimit] = useState(1000); // Introduce state for limit
 
   const { loading, error, data, refetch } = useQuery(GET_WEATHER_DATA, {
     variables: {
-      // limit: 10000, // Adjust as needed
       limit,
       startDate: startDate ? format(startDate, 'yyyy-MM-dd HH:mm:ss') : null,
       endDate: endDate ? format(endDate, 'yyyy-MM-dd HH:mm:ss') : null,
@@ -31,12 +31,11 @@ function App() {
 
   useEffect(() => {
     refetch({
-      // limit: 10000,
       limit,
       startDate: startDate ? format(startDate, 'yyyy-MM-dd HH:mm:ss') : null,
       endDate: endDate ? format(endDate, 'yyyy-MM-dd HH:mm:ss') : null,
     });
-  }, [startDate, endDate, refetch]);
+  }, [startDate, endDate, limit, refetch]);
 
   const handleVariableChange = (event) => {
     const { value, checked } = event.target;
@@ -86,7 +85,7 @@ function App() {
   };
 
   const getChartData = () => {
-    if (!data || selectedVariables.length === 0) return {};
+    if (!data || !data.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
 
     // Filter data based on selected date range
     const filteredData = data.getWeatherData.filter((entry) => {
@@ -98,6 +97,11 @@ function App() {
 
     // Remove entries with null or undefined wdatetime
     const cleanedData = filteredData.filter((entry) => entry.wdatetime);
+
+    // If no data after filtering, return empty arrays
+    if (cleanedData.length === 0) {
+      return { labels: [], datasets: [] };
+    }
 
     const labels = cleanedData.map((entry) =>
       new Date(Number(entry.wdatetime)).toLocaleString()
@@ -128,14 +132,16 @@ function App() {
       });
 
       if (showMovingAverage) {
-        const movingAverage = calculateMovingAverage(cleanedData, 5)[variable];
+        const movingAverage = calculateMovingAverage(cleanedData, movingAverageWindow)[variable];
         chartData.datasets.push({
-          label: `${variables.find((v) => v.value === variable).label} (5-point MA)`,
+          label: `${variables.find((v) => v.value === variable).label} (${movingAverageWindow}-point MA)`,
           data: movingAverage,
           fill: false,
-          backgroundColor: getColor(index, true),
-          borderColor: getColor(index, true),
-          borderWidth: 2,
+          backgroundColor: 'rgba(255,0,0,0.4)', // Fixed red background
+          borderColor: 'rgba(255,0,0,1)', // Fixed red border
+          borderWidth: 2, // Thicker line
+          pointRadius: 0, // No points for moving average
+          pointHoverRadius: 0, // No hover effect
           tension: 0.1,
           spanGaps: true, // Connect points with null values
           yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
@@ -157,8 +163,8 @@ function App() {
     ];
 
     if (isMovingAverage) {
-      return colors[index % colors.length].replace('1)', '0.4)');
-      // return 'rgba(255,0,0,1)'; // Fixed red for moving average
+      // Fixed red color for moving averages
+      return 'rgba(255,0,0,1)';
     }
 
     return colors[index % colors.length];
@@ -180,6 +186,8 @@ function App() {
 
   if (loading) return <p className="text-center mt-10">Loading...</p>;
   if (error) return <p className="text-center mt-10 text-red-500">Error: {error.message}</p>;
+
+  const chartData = getChartData();
 
   return (
     <div className="flex flex-col h-screen">
@@ -209,19 +217,34 @@ function App() {
             ))}
           </div>
 
-          {/* Moving Average Toggle */}
+          {/* Moving Average Controls */}
           {selectedVariables.length > 0 && (
-            <div className="mt-6">
+            <div className="mt-6 flex items-center space-x-4">
               <button
                 onClick={handleMovingAverageToggle}
-                className={`w-full px-4 py-2 rounded text-left ${
-                  showMovingAverage
+                className={`px-4 py-2 rounded text-left ${showMovingAverage
                     ? 'bg-red-500 text-white hover:bg-red-600'
                     : 'bg-green-500 text-white hover:bg-green-600'
-                }`}
+                  }`}
               >
                 {showMovingAverage ? 'Hide Moving Average' : 'Show Moving Average'}
               </button>
+
+              {showMovingAverage && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Window Size:</label>
+                  <select
+                    value={movingAverageWindow}
+                    onChange={(e) => setMovingAverageWindow(Number(e.target.value))}
+                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={100}>100</option>
+                    {/* Add more options as needed */}
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
@@ -267,26 +290,27 @@ function App() {
         {/* Main Content */}
         <div className="md:w-3/4 lg:w-4/5 p-6 overflow-auto">
           {selectedVariables.length > 0 ? (
-            <div className="bg-white p-4 rounded shadow h-full" style={{ height: '500px' }}>
-              <Line
-                data={getChartData()}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false, // Allows the chart to fill the container's height
-                  plugins: {
-                    legend: {
-                      position: 'top',
+            chartData.datasets && chartData.datasets.length > 0 ? (
+              <div className="bg-white p-4 rounded shadow h-full" style={{ height: '500px' }}>
+                <Line
+                  data={chartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false, // Allows the chart to fill the container's height
+                    plugins: {
+                      legend: {
+                        position: 'top',
+                      },
+                      title: {
+                        display: true,
+                        text:
+                          selectedVariables.length === 1
+                            ? variables.find((v) => v.value === selectedVariables[0]).label
+                            : 'Selected Variables Comparison',
+                      },
                     },
-                    title: {
-                      display: true,
-                      text:
-                        selectedVariables.length === 1
-                          ? variables.find((v) => v.value === selectedVariables[0]).label
-                          : 'Selected Variables Comparison',
-                    },
-                  },
-                  scales: selectedVariables.length > 1
-                    ? selectedVariables.reduce((acc, variable, index) => {
+                    scales: selectedVariables.length > 1
+                      ? selectedVariables.reduce((acc, variable, index) => {
                         acc[`y-axis-${index}`] = {
                           type: 'linear',
                           position: index % 2 === 0 ? 'left' : 'right',
@@ -300,7 +324,7 @@ function App() {
                         };
                         return acc;
                       }, {})
-                    : {
+                      : {
                         y: {
                           title: {
                             display: true,
@@ -309,9 +333,12 @@ function App() {
                           beginAtZero: false,
                         },
                       },
-                }}
-              />
-            </div>
+                  }}
+                />
+              </div>
+            ) : (
+              <p className="text-center text-gray-500">No data available for the selected date range.</p>
+            )
           ) : (
             <p className="text-center text-gray-500">Select one or more variables to display the graph.</p>
           )}

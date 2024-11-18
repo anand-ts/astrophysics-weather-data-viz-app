@@ -236,8 +236,8 @@ function App() {
               <button
                 onClick={handleMovingAverageToggle}
                 className={`px-4 py-2 rounded text-left ${showMovingAverage
-                    ? 'bg-red-500 text-white hover:bg-red-600'
-                    : 'bg-green-500 text-white hover:bg-green-600'
+                  ? 'bg-red-500 text-white hover:bg-red-600'
+                  : 'bg-green-500 text-white hover:bg-green-600'
                   }`}
               >
                 {showMovingAverage ? 'Hide Moving Average' : 'Show Moving Average'}
@@ -245,6 +245,7 @@ function App() {
 
               {showMovingAverage && (
                 <div className="flex flex-col">
+                  <label className="block text-sm font-medium text-gray-700">Step Size:</label>
                   <input
                     type="number"
                     value={movingAverageWindow}
@@ -254,7 +255,7 @@ function App() {
                     placeholder="Enter size"
                   />
                   {movingAverageWindow !== '' && (isNaN(movingAverageWindow) || movingAverageWindow < 1) && (
-                    <p className="text-red-500 text-sm mt-1">Enter a positive integer.</p>
+                    <p className="text-red-500 text-sm mt-1">Enter step size.</p>
                   )}
                 </div>
               )}
@@ -267,6 +268,21 @@ function App() {
             <div className="flex flex-col space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Start Date:</label>
+                {/* <DatePicker
+                  selected={startDate}
+                  onChange={(date) => setStartDate(date)}
+                  selectsStart
+                  startDate={startDate}
+                  endDate={endDate}
+                  showTimeSelect
+                  dateFormat="Pp"
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode='select'
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
+                  placeholderText="Select start date"
+                  popperPlacement="bottom-end" // Simple fix for clipping
+                /> */}
                 <DatePicker
                   selected={startDate}
                   onChange={(date) => setStartDate(date)}
@@ -275,14 +291,63 @@ function App() {
                   endDate={endDate}
                   showTimeSelect
                   dateFormat="Pp"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
+                  showMonthDropdown
+                  showYearDropdown
+                  dropdownMode="select"
                   placeholderText="Select start date"
                   popperPlacement="bottom-end" // Simple fix for clipping
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
+                  renderCustomHeader={({ date, changeYear, changeMonth, decreaseMonth, increaseMonth, prevMonthButtonDisabled, nextMonthButtonDisabled }) => (
+                    <div className="flex items-center justify-between px-2">
+                      <button
+                        onClick={decreaseMonth}
+                        disabled={prevMonthButtonDisabled}
+                        className="text-gray-700 hover:text-black"
+                      >
+                        {"<"}
+                      </button>
+                      <div className="flex space-x-2">
+                        <select
+                          value={new Date(date).getFullYear()}
+                          onChange={({ target: { value } }) => changeYear(parseInt(value))}
+                          className="border rounded-md p-1"
+                        >
+                          {Array.from({ length: 20 }, (_, i) => {
+                            const year = new Date().getFullYear() - 20 + i; // Adjust years as needed
+                            return (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <select
+                          value={new Date(date).getMonth()}
+                          onChange={({ target: { value } }) => changeMonth(parseInt(value))}
+                          className="border rounded-md p-1"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <option key={i} value={i}>
+                              {new Date(0, i).toLocaleString("default", { month: "long" })}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={increaseMonth}
+                        disabled={nextMonthButtonDisabled}
+                        className="text-gray-700 hover:text-black"
+                      >
+                        {">"}
+                      </button>
+                    </div>
+                  )}
                 />
+
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">End Date:</label>
-                <DatePicker
+                {/* <DatePicker
                   selected={endDate}
                   onChange={(date) => setEndDate(date)}
                   selectsEnd
@@ -294,7 +359,66 @@ function App() {
                   className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
                   placeholderText="Select end date"
                   popperPlacement="bottom-end" // Simple fix for clipping
+                /> */}
+                <DatePicker
+                  selected={endDate}
+                  onChange={(date) => setEndDate(date)}
+                  selectsEnd
+                  startDate={startDate}
+                  endDate={endDate}
+                  minDate={startDate}
+                  showTimeSelect
+                  dateFormat="Pp"
+                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
+                  placeholderText="Select end date"
+                  popperPlacement="bottom-end"
+                  renderCustomHeader={({ date, changeYear, changeMonth, decreaseMonth, increaseMonth, prevMonthButtonDisabled, nextMonthButtonDisabled }) => (
+                    <div className="flex items-center justify-between px-2">
+                      <button
+                        onClick={decreaseMonth}
+                        disabled={prevMonthButtonDisabled}
+                        className="text-gray-700 hover:text-black"
+                      >
+                        {"<"}
+                      </button>
+                      <div className="flex space-x-2">
+                        <select
+                          value={new Date(date).getFullYear()}
+                          onChange={({ target: { value } }) => changeYear(parseInt(value))}
+                          className="border rounded-md p-1"
+                        >
+                          {Array.from({ length: 20 }, (_, i) => {
+                            const year = new Date().getFullYear() - 20 + i; // Adjust years as needed
+                            return (
+                              <option key={year} value={year}>
+                                {year}
+                              </option>
+                            );
+                          })}
+                        </select>
+                        <select
+                          value={new Date(date).getMonth()}
+                          onChange={({ target: { value } }) => changeMonth(parseInt(value))}
+                          className="border rounded-md p-1"
+                        >
+                          {Array.from({ length: 12 }, (_, i) => (
+                            <option key={i} value={i}>
+                              {new Date(0, i).toLocaleString("default", { month: "long" })}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <button
+                        onClick={increaseMonth}
+                        disabled={nextMonthButtonDisabled}
+                        className="text-gray-700 hover:text-black"
+                      >
+                        {">"}
+                      </button>
+                    </div>
+                  )}
                 />
+
               </div>
             </div>
           </div>

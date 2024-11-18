@@ -15,10 +15,10 @@ import blackHoleLogo from './assets/black_hole.jpg'; // Ensure the path is corre
 function App() {
   const [selectedVariables, setSelectedVariables] = useState([]);
   const [showMovingAverage, setShowMovingAverage] = useState(false);
-  const [movingAverageWindow, setMovingAverageWindow] = useState(5); // New state for window size
+  const [movingAverageWindow, setMovingAverageWindow] = useState(5); // State for window size
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [limit, setLimit] = useState(1000); // Introduce state for limit
+  const [limit, setLimit] = useState(1000); // State for data limit
 
   const { loading, error, data, refetch } = useQuery(GET_WEATHER_DATA, {
     variables: {
@@ -49,6 +49,18 @@ function App() {
 
   const handleMovingAverageToggle = () => {
     setShowMovingAverage(!showMovingAverage);
+  };
+
+  const handleMovingAverageWindowChange = (event) => {
+    const value = event.target.value;
+    // Validate that the input is a positive integer
+    const intValue = parseInt(value, 10);
+    if (!isNaN(intValue) && intValue > 0) {
+      setMovingAverageWindow(intValue);
+    } else if (value === '') {
+      setMovingAverageWindow('');
+    }
+    // Optionally, you can provide feedback for invalid inputs
   };
 
   const calculateMovingAverage = (data, windowSize = 5) => {
@@ -131,7 +143,7 @@ function App() {
         yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
       });
 
-      if (showMovingAverage) {
+      if (showMovingAverage && movingAverageWindow) {
         const movingAverage = calculateMovingAverage(cleanedData, movingAverageWindow)[variable];
         chartData.datasets.push({
           label: `${variables.find((v) => v.value === variable).label} (${movingAverageWindow}-point MA)`,
@@ -211,6 +223,7 @@ function App() {
                   checked={selectedVariables.includes(varItem.value)}
                   onChange={handleVariableChange}
                   className="form-checkbox h-5 w-5 text-blue-600"
+                  aria-label={`Toggle ${varItem.label}`}
                 />
                 <span className="text-gray-700">{varItem.label}</span>
               </label>
@@ -231,18 +244,18 @@ function App() {
               </button>
 
               {showMovingAverage && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Window Size:</label>
-                  <select
+                <div className="flex flex-col">
+                  <input
+                    type="number"
                     value={movingAverageWindow}
-                    onChange={(e) => setMovingAverageWindow(Number(e.target.value))}
-                    className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                  >
-                    <option value={5}>5</option>
-                    <option value={10}>10</option>
-                    <option value={100}>100</option>
-                    {/* Add more options as needed */}
-                  </select>
+                    onChange={handleMovingAverageWindowChange}
+                    className="mt-1 block w-24 border-gray-300 rounded-md shadow-sm"
+                    min="1"
+                    placeholder="Enter size"
+                  />
+                  {movingAverageWindow !== '' && (isNaN(movingAverageWindow) || movingAverageWindow < 1) && (
+                    <p className="text-red-500 text-sm mt-1">Enter a positive integer.</p>
+                  )}
                 </div>
               )}
             </div>

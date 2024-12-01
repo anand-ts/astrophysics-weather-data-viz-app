@@ -189,9 +189,6 @@ function App() {
     { label: 'Tau 225 GHz', value: 'tau225ghz' },
   ];
 
-  if (loading) return <p className="text-center mt-10">Loading...</p>;
-  if (error) return <p className="text-center mt-10 text-red-500">Error: {error.message}</p>;
-
   const chartData = getChartData();
 
   return (
@@ -302,11 +299,11 @@ function App() {
                     });
                   }
                 }}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
                 disabled={!startDate || !endDate || dateError.startDate || dateError.endDate}
                 aria-label="Apply Date Range"
               >
-                Apply
+                {loading ? 'Loading...' : 'Apply'}
               </button>
             </form>
           </div>
@@ -315,8 +312,12 @@ function App() {
         {/* Main Content */}
         <div className="md:w-3/4 lg:w-4/5 p-6 overflow-auto">
           {selectedVariables.length > 0 ? (
-            chartData.datasets && chartData.datasets.length > 0 ? (
-              <div className="bg-white p-4 rounded shadow h-full" style={{ height: '500px' }}>
+            <div className="bg-white p-4 rounded shadow h-full" style={{ height: '500px' }}>
+              {loading ? (
+                <p className="text-center mt-10">Loading...</p>
+              ) : error ? (
+                <p className="text-center mt-10 text-red-500">Error: {error.message}</p>
+              ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
                 <Line
                   data={chartData}
                   options={{
@@ -360,10 +361,10 @@ function App() {
                       },
                   }}
                 />
-              </div>
-            ) : (
-              <p className="text-center text-gray-500">No data available for the selected date range.</p>
-            )
+              ) : (
+                <p className="text-center text-gray-500">No data available for the selected date range.</p>
+              )}
+            </div>
           ) : (
             <p className="text-center text-gray-500">Select one or more variables to display the graph.</p>
           )}

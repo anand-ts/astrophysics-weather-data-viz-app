@@ -1,13 +1,9 @@
 // src/App.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from './queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
-import DatePicker from 'react-datepicker';
-import 'react-datepicker/dist/react-datepicker.css';
-import ReactDOM from 'react-dom';
-import { format } from 'date-fns';
 
 // Import the logo image
 import blackHoleLogo from './assets/black_hole.jpg'; // Ensure the path is correct
@@ -16,26 +12,41 @@ function App() {
   const [selectedVariables, setSelectedVariables] = useState([]);
   const [showMovingAverage, setShowMovingAverage] = useState(false);
   const [movingAverageWindow, setMovingAverageWindow] = useState(5); // State for window size
-  const [startDate, setStartDate] = useState(null);
-  const [endDate, setEndDate] = useState(null);
-  const [limit, setLimit] = useState(1000); // State for data limit
+  const [startDate, setStartDate] = useState(''); // Date string
+  const [endDate, setEndDate] = useState(''); // Date string
+  const [dateError, setDateError] = useState({ startDate: false, endDate: false }); // State for date validation
+
+  // Helper function to validate date format
+  const isValidDateFormat = useCallback((dateString) => {
+    // Regex to match "YYYY-MM-DD HH:mm:ss"
+    const regex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+    return regex.test(dateString);
+  }, []);
 
   const { loading, error, data, refetch } = useQuery(GET_WEATHER_DATA, {
     variables: {
-      limit,
-      startDate: startDate ? format(startDate, 'yyyy-MM-dd HH:mm:ss') : null,
-      endDate: endDate ? format(endDate, 'yyyy-MM-dd HH:mm:ss') : null,
+      limit: 500, // Fixed limit
+      startDate: startDate || null, // Send as is
+      endDate: endDate || null,     // Send as is
     },
     fetchPolicy: 'network-only', // Always fetch from server
   });
 
   useEffect(() => {
-    refetch({
-      limit,
-      startDate: startDate ? format(startDate, 'yyyy-MM-dd HH:mm:ss') : null,
-      endDate: endDate ? format(endDate, 'yyyy-MM-dd HH:mm:ss') : null,
-    });
-  }, [startDate, endDate, limit, refetch]);
+    // Validate dates before refetching
+    const isStartDateValid = startDate ? isValidDateFormat(startDate) : true;
+    const isEndDateValid = endDate ? isValidDateFormat(endDate) : true;
+
+    setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
+
+    if (isStartDateValid && isEndDateValid) {
+      refetch({
+        limit: 500000,
+        startDate: startDate || null,
+        endDate: endDate || null,
+      });
+    }
+  }, [startDate, endDate, refetch, isValidDateFormat]);
 
   const handleVariableChange = (event) => {
     const { value, checked } = event.target;
@@ -99,16 +110,8 @@ function App() {
   const getChartData = () => {
     if (!data || !data.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
 
-    // Filter data based on selected date range
-    const filteredData = data.getWeatherData.filter((entry) => {
-      const entryDate = new Date(Number(entry.wdatetime)); // Convert string to number
-      if (startDate && entryDate < startDate) return false;
-      if (endDate && entryDate > endDate) return false;
-      return true;
-    });
-
-    // Remove entries with null or undefined wdatetime
-    const cleanedData = filteredData.filter((entry) => entry.wdatetime);
+    // No need to filter data on the frontend as the server already filters it
+    const cleanedData = data.getWeatherData.filter((entry) => entry.wdatetime);
 
     // If no data after filtering, return empty arrays
     if (cleanedData.length === 0) {
@@ -116,7 +119,7 @@ function App() {
     }
 
     const labels = cleanedData.map((entry) =>
-      new Date(Number(entry.wdatetime)).toLocaleString()
+      new Date(entry.wdatetime).toLocaleString()
     );
 
     const chartData = {
@@ -255,7 +258,7 @@ function App() {
                     placeholder="Enter size"
                   />
                   {movingAverageWindow !== '' && (isNaN(movingAverageWindow) || movingAverageWindow < 1) && (
-                    <p className="text-red-500 text-sm mt-1">Enter step size.</p>
+                    <p className="text-red-500 text-sm mt-1">Enter a positive integer.</p>
                   )}
                 </div>
               )}
@@ -268,157 +271,33 @@ function App() {
             <div className="flex flex-col space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Start Date:</label>
-                {/* <DatePicker
-                  selected={startDate}
-                  onChange={(date) => setStartDate(date)}
-                  selectsStart
-                  startDate={startDate}
-                  endDate={endDate}
-                  showTimeSelect
-                  dateFormat="Pp"
-                  showMonthDropdown
-                  showYearDropdown
-                  dropdownMode='select'
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
-                  placeholderText="Select start date"
-                  popperPlacement="bottom-end" // Simple fix for clipping
-                /> */}
-                <DatePicker
-                  selected={startDate}
-                  onChange={(date) => setStartDate(date)}
-                  selectsStart
-                  startDate={startDate}
-                  endDate={endDate}
-                  showTimeSelect
-                  dateFormat="Pp"
-                  showMonthDropdown
-                  showYearDropdown
-                  dropdownMode="select"
-                  placeholderText="Select start date"
-                  popperPlacement="bottom-end" // Simple fix for clipping
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm"
-                  renderCustomHeader={({ date, changeYear, changeMonth, decreaseMonth, increaseMonth, prevMonthButtonDisabled, nextMonthButtonDisabled }) => (
-                    <div className="flex items-center justify-between px-2">
-                      <button
-                        onClick={decreaseMonth}
-                        disabled={prevMonthButtonDisabled}
-                        className="text-gray-700 hover:text-black"
-                      >
-                        {"<"}
-                      </button>
-                      <div className="flex space-x-2">
-                        <select
-                          value={new Date(date).getFullYear()}
-                          onChange={({ target: { value } }) => changeYear(parseInt(value))}
-                          className="border rounded-md p-1"
-                        >
-                          {Array.from({ length: 20 }, (_, i) => {
-                            const year = new Date().getFullYear() - 20 + i; // Adjust years as needed
-                            return (
-                              <option key={year} value={year}>
-                                {year}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <select
-                          value={new Date(date).getMonth()}
-                          onChange={({ target: { value } }) => changeMonth(parseInt(value))}
-                          className="border rounded-md p-1"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i} value={i}>
-                              {new Date(0, i).toLocaleString("default", { month: "long" })}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <button
-                        onClick={increaseMonth}
-                        disabled={nextMonthButtonDisabled}
-                        className="text-gray-700 hover:text-black"
-                      >
-                        {">"}
-                      </button>
-                    </div>
-                  )}
+                <input
+                  type="text"
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className={`mt-1 block w-full border ${dateError.startDate ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm`}
+                  placeholder="YYYY-MM-DD HH:mm:ss"
+                  aria-label="Start Date"
                 />
-
+                {/* Validation Message */}
+                {startDate && dateError.startDate && (
+                  <p className="text-red-500 text-sm mt-1">Invalid date format.</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">End Date:</label>
-                {/* <DatePicker
-                  selected={endDate}
-                  onChange={(date) => setEndDate(date)}
-                  selectsEnd
-                  startDate={startDate}
-                  endDate={endDate}
-                  minDate={startDate}
-                  showTimeSelect
-                  dateFormat="Pp"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
-                  placeholderText="Select end date"
-                  popperPlacement="bottom-end" // Simple fix for clipping
-                /> */}
-                <DatePicker
-                  selected={endDate}
-                  onChange={(date) => setEndDate(date)}
-                  selectsEnd
-                  startDate={startDate}
-                  endDate={endDate}
-                  minDate={startDate}
-                  showTimeSelect
-                  dateFormat="Pp"
-                  className="mt-1 block w-full border-gray-300 rounded-md shadow-sm z-50"
-                  placeholderText="Select end date"
-                  popperPlacement="bottom-end"
-                  renderCustomHeader={({ date, changeYear, changeMonth, decreaseMonth, increaseMonth, prevMonthButtonDisabled, nextMonthButtonDisabled }) => (
-                    <div className="flex items-center justify-between px-2">
-                      <button
-                        onClick={decreaseMonth}
-                        disabled={prevMonthButtonDisabled}
-                        className="text-gray-700 hover:text-black"
-                      >
-                        {"<"}
-                      </button>
-                      <div className="flex space-x-2">
-                        <select
-                          value={new Date(date).getFullYear()}
-                          onChange={({ target: { value } }) => changeYear(parseInt(value))}
-                          className="border rounded-md p-1"
-                        >
-                          {Array.from({ length: 20 }, (_, i) => {
-                            const year = new Date().getFullYear() - 20 + i; // Adjust years as needed
-                            return (
-                              <option key={year} value={year}>
-                                {year}
-                              </option>
-                            );
-                          })}
-                        </select>
-                        <select
-                          value={new Date(date).getMonth()}
-                          onChange={({ target: { value } }) => changeMonth(parseInt(value))}
-                          className="border rounded-md p-1"
-                        >
-                          {Array.from({ length: 12 }, (_, i) => (
-                            <option key={i} value={i}>
-                              {new Date(0, i).toLocaleString("default", { month: "long" })}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <button
-                        onClick={increaseMonth}
-                        disabled={nextMonthButtonDisabled}
-                        className="text-gray-700 hover:text-black"
-                      >
-                        {">"}
-                      </button>
-                    </div>
-                  )}
+                <input
+                  type="text"
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className={`mt-1 block w-full border ${dateError.endDate ? 'border-red-500' : 'border-gray-300'} rounded-md shadow-sm`}
+                  placeholder="YYYY-MM-DD HH:mm:ss"
+                  aria-label="End Date"
                 />
-
+                {/* Validation Message */}
+                {endDate && dateError.endDate && (
+                  <p className="text-red-500 text-sm mt-1">Invalid date format.</p>
+                )}
               </div>
             </div>
           </div>

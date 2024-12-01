@@ -13,7 +13,7 @@ mongoose.connect('mongodb://localhost:27017/data_stream', {
 
 // Define Mongoose Schema and Model
 const weatherSchema = new mongoose.Schema({
-  wdatetime: Date,
+  wdatetime: String, // Kept as String
   temperature_k: Number,
   dewpoint_k: Number,
   pressure_kpa: Number,
@@ -57,41 +57,47 @@ const resolvers = {
   Query: {
     getWeatherData: async (_, { limit, startDate, endDate }) => {
       try {
+        console.log('Received startDate:', startDate);
+        console.log('Received endDate:', endDate);
+
         const filter = {};
         if (startDate) {
-          filter.wdatetime = { $gte: new Date(startDate) };
+          filter.wdatetime = { $gte: startDate };
         }
         if (endDate) {
           filter.wdatetime = filter.wdatetime || {};
-          filter.wdatetime.$lte = new Date(endDate);
+          filter.wdatetime.$lte = endDate;
         }
+
+        // Optional: Sort in ascending order based on wdatetime
         const data = await Weather.find(filter)
           .limit(limit)
           .sort({ wdatetime: 1 });
 
-        // Convert Date objects to ISO strings
+        console.log(`Fetched ${data.length} records from the database.`);
+
+        // Return data as is since wdatetime is a string
         return data.map(entry => ({
           ...entry.toObject(),
-          wdatetime: entry.wdatetime.toISOString(),
+          wdatetime: entry.wdatetime.toString(),
         }));
       } catch (err) {
-        console.error(err);
+        console.error('Error in getWeatherData resolver:', err);
         return [];
       }
     },
     getWeatherByDate: async (_, { wdatetime }) => {
       try {
-        const date = new Date(wdatetime);
-        const data = await Weather.findOne({ wdatetime: date });
+        const data = await Weather.findOne({ wdatetime });
         if (data) {
           return {
             ...data.toObject(),
-            wdatetime: data.wdatetime.toISOString(),
+            wdatetime: data.wdatetime.toString(),
           };
         }
         return null;
       } catch (err) {
-        console.error(err);
+        console.error('Error in getWeatherByDate resolver:', err);
         return null;
       }
     },

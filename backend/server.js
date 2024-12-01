@@ -8,8 +8,8 @@ mongoose.connect('mongodb://localhost:27017/data_stream', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
-.then(() => console.log('Connected to MongoDB'))
-.catch(err => console.error('MongoDB connection error:', err));
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
 // Define Mongoose Schema and Model
 const weatherSchema = new mongoose.Schema({
@@ -25,10 +25,11 @@ const weatherSchema = new mongoose.Schema({
   tau183ghz: Number,
   tau215ghz: Number,
   tau225ghz: Number,
-}, { collection: 'weather_data' });
+}, { collection: 'apex_2006_2023' });
 
 const Weather = mongoose.model('Weather', weatherSchema);
 
+// GraphQL Type Definitions
 const typeDefs = gql`
   type Weather {
     wdatetime: String
@@ -51,6 +52,7 @@ const typeDefs = gql`
   }
 `;
 
+// GraphQL Resolvers
 const resolvers = {
   Query: {
     getWeatherData: async (_, { limit, startDate, endDate }) => {
@@ -66,7 +68,12 @@ const resolvers = {
         const data = await Weather.find(filter)
           .limit(limit)
           .sort({ wdatetime: 1 });
-        return data;
+
+        // Convert Date objects to ISO strings
+        return data.map(entry => ({
+          ...entry.toObject(),
+          wdatetime: entry.wdatetime.toISOString(),
+        }));
       } catch (err) {
         console.error(err);
         return [];
@@ -76,7 +83,13 @@ const resolvers = {
       try {
         const date = new Date(wdatetime);
         const data = await Weather.findOne({ wdatetime: date });
-        return data;
+        if (data) {
+          return {
+            ...data.toObject(),
+            wdatetime: data.wdatetime.toISOString(),
+          };
+        }
+        return null;
       } catch (err) {
         console.error(err);
         return null;
@@ -85,7 +98,6 @@ const resolvers = {
   },
 };
 
-
 // Initialize Apollo Server
 const server = new ApolloServer({ typeDefs, resolvers });
 
@@ -93,11 +105,10 @@ const server = new ApolloServer({ typeDefs, resolvers });
 const app = express();
 server.start().then(res => {
   server.applyMiddleware({ app });
-  
+
   // Start the Server
   const PORT = process.env.PORT || 4000;
   app.listen(PORT, () => {
     console.log(`Server ready at http://localhost:${PORT}${server.graphqlPath}`);
   });
 });
-

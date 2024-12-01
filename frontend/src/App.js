@@ -15,6 +15,7 @@ function App() {
   const [startDate, setStartDate] = useState(''); // Date string
   const [endDate, setEndDate] = useState(''); // Date string
   const [dateError, setDateError] = useState({ startDate: false, endDate: false }); // State for date validation
+  const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(false); // State for additional graph
 
   // Helper function to validate date format
   const isValidDateFormat = useCallback((dateString) => {
@@ -46,6 +47,7 @@ function App() {
       setSelectedVariables((prev) => prev.filter((item) => item !== value));
     }
     setShowMovingAverage(false); // Reset moving average when variables change
+    setShowOnlyMovingAverage(false); // Hide additional graph when variables change
   };
 
   const handleMovingAverageToggle = () => {
@@ -97,13 +99,25 @@ function App() {
     return averages;
   };
 
+  const getColor = (index, opacity = 1) => {
+    const colors = [
+      'rgba(75,192,192',   // Teal
+      'rgba(255,99,132',   // Red
+      'rgba(54,162,235',   // Blue
+      'rgba(255,206,86',    // Yellow
+      'rgba(153,102,255',   // Purple
+      'rgba(255,159,64',    // Orange
+    ];
+
+    const baseColor = colors[index % colors.length] + `, ${opacity})`;
+    return baseColor;
+  };
+
   const getChartData = () => {
     if (!data || !data.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
 
-    // No need to filter data on the frontend as the server already filters it
     const cleanedData = data.getWeatherData.filter((entry) => entry.wdatetime);
-  
-    // If no data after filtering, return empty arrays
+
     if (cleanedData.length === 0) {
       return { labels: [], datasets: [] };
     }
@@ -122,6 +136,7 @@ function App() {
         (entry) => (entry[variable] !== undefined ? entry[variable] : null)
       );
 
+      // Variable Dataset
       chartData.datasets.push({
         label: variables.find((v) => v.value === variable).label,
         data: values,
@@ -131,24 +146,25 @@ function App() {
         borderWidth: 1,
         pointRadius: 1,
         pointHoverRadius: 8,
-        tension: 0.1, // Smooth curves
-        spanGaps: true, // Connect points with null values
+        tension: 0.1,
+        spanGaps: true,
         yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
       });
 
+      // Moving Average Dataset
       if (showMovingAverage && movingAverageWindow) {
         const movingAverage = calculateMovingAverage(cleanedData, movingAverageWindow)[variable];
         chartData.datasets.push({
           label: `${variables.find((v) => v.value === variable).label} (${movingAverageWindow}-point MA)`,
           data: movingAverage,
           fill: false,
-          backgroundColor: 'rgba(255,0,0,0.4)', // Fixed red background
-          borderColor: 'rgba(255,0,0,1)', // Fixed red border
-          borderWidth: 2, // Thicker line
-          pointRadius: 0, // No points for moving average
-          pointHoverRadius: 0, // No hover effect
+          backgroundColor: getColor(index, 0.5), // 50% opacity
+          borderColor: getColor(index, 0.5),     // 50% opacity
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 0,
           tension: 0.1,
-          spanGaps: true, // Connect points with null values
+          spanGaps: true,
           yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
         });
       }
@@ -157,22 +173,44 @@ function App() {
     return chartData;
   };
 
-  const getColor = (index, isMovingAverage = false) => {
-    const colors = [
-      'rgba(75,192,192,1)',
-      'rgba(255,99,132,1)',
-      'rgba(54,162,235,1)',
-      'rgba(255,206,86,1)',
-      'rgba(153,102,255,1)',
-      'rgba(255,159,64,1)',
-    ];
+  const getMovingAverageChartData = () => {
+    if (!data || !data.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
 
-    if (isMovingAverage) {
-      // Fixed red color for moving averages
-      return 'rgba(255,0,0,1)';
+    const cleanedData = data.getWeatherData.filter((entry) => entry.wdatetime);
+
+    if (cleanedData.length === 0) {
+      return { labels: [], datasets: [] };
     }
 
-    return colors[index % colors.length];
+    const labels = cleanedData.map((entry) =>
+      new Date(entry.wdatetime).toLocaleString()
+    );
+
+    const chartData = {
+      labels,
+      datasets: [],
+    };
+
+    selectedVariables.forEach((variable, index) => {
+      if (showMovingAverage && movingAverageWindow) {
+        const movingAverage = calculateMovingAverage(cleanedData, movingAverageWindow)[variable];
+        chartData.datasets.push({
+          label: `${variables.find((v) => v.value === variable).label} (${movingAverageWindow}-point MA)`,
+          data: movingAverage,
+          fill: false,
+          backgroundColor: getColor(index, 0.5), // 50% opacity
+          borderColor: getColor(index, 0.5),     // 50% opacity
+          borderWidth: 2,
+          pointRadius: 1,
+          pointHoverRadius: 0,
+          tension: 0.1,
+          spanGaps: true,
+          yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
+        });
+      }
+    });
+
+    return chartData;
   };
 
   const variables = [
@@ -190,6 +228,7 @@ function App() {
   ];
 
   const chartData = getChartData();
+  const movingAverageChartData = getMovingAverageChartData();
 
   return (
     <div className="flex flex-col h-screen">
@@ -297,6 +336,7 @@ function App() {
                         endDate: endDate,
                       },
                     });
+                    setShowOnlyMovingAverage(false); // Hide additional graph when new data is fetched
                   }
                 }}
                 className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 flex items-center justify-center"
@@ -312,59 +352,133 @@ function App() {
         {/* Main Content */}
         <div className="md:w-3/4 lg:w-4/5 p-6 overflow-auto">
           {selectedVariables.length > 0 ? (
-            <div className="bg-white p-4 rounded shadow h-full" style={{ height: '500px' }}>
-              {loading ? (
-                <p className="text-center mt-10">Loading...</p>
-              ) : error ? (
-                <p className="text-center mt-10 text-red-500">Error: {error.message}</p>
-              ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
-                <Line
-                  data={chartData}
-                  options={{
-                    responsive: true,
-                    maintainAspectRatio: false, // Allows the chart to fill the container's height
-                    plugins: {
-                      legend: {
-                        position: 'top',
-                      },
-                      title: {
-                        display: true,
-                        text:
-                          selectedVariables.length === 1
-                            ? variables.find((v) => v.value === selectedVariables[0]).label
-                            : 'Selected Variables Comparison',
-                      },
-                    },
-                    scales: selectedVariables.length > 1
-                      ? selectedVariables.reduce((acc, variable, index) => {
-                        acc[`y-axis-${index}`] = {
-                          type: 'linear',
-                          position: index % 2 === 0 ? 'left' : 'right',
-                          grid: {
-                            drawOnChartArea: index === 0, // Only draw grid on the first y-axis
-                          },
-                          title: {
-                            display: true,
-                            text: variables.find((v) => v.value === variable).label,
-                          },
-                        };
-                        return acc;
-                      }, {})
-                      : {
-                        y: {
-                          title: {
-                            display: true,
-                            text: variables.find((v) => v.value === selectedVariables[0]).label,
-                          },
-                          beginAtZero: false,
+            <>
+              {/* Main Graph */}
+              <div className="bg-white p-4 rounded shadow h-full" style={{ height: '500px' }}>
+                {loading && !showOnlyMovingAverage ? (
+                  <div className="flex justify-center items-center h-full">
+                    <p>Loading...</p>
+                  </div>
+                ) : error && !showOnlyMovingAverage ? (
+                  <p className="text-center text-red-500">Error: {error.message}</p>
+                ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
+                  <Line
+                    data={chartData}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'top',
+                        },
+                        title: {
+                          display: true,
+                          text:
+                            selectedVariables.length === 1
+                              ? variables.find((v) => v.value === selectedVariables[0]).label
+                              : 'Selected Variables Comparison',
                         },
                       },
-                  }}
-                />
-              ) : (
-                <p className="text-center text-gray-500">No data available for the selected date range.</p>
+                      scales: selectedVariables.length > 1
+                        ? selectedVariables.reduce((acc, variable, index) => {
+                            acc[`y-axis-${index}`] = {
+                              type: 'linear',
+                              position: index % 2 === 0 ? 'left' : 'right',
+                              grid: {
+                                drawOnChartArea: index === 0,
+                              },
+                              title: {
+                                display: true,
+                                text: variables.find((v) => v.value === variable).label,
+                              },
+                            };
+                            return acc;
+                          }, {})
+                        : {
+                            y: {
+                              title: {
+                                display: true,
+                                text: variables.find((v) => v.value === selectedVariables[0]).label,
+                              },
+                              beginAtZero: false,
+                            },
+                          },
+                    }}
+                  />
+                ) : (
+                  <p className="text-center text-gray-500">No data available for the selected date range.</p>
+                )}
+              </div>
+
+              {/* Toggle Moving Average Graph Button */}
+              {selectedVariables.length > 0 && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    onClick={() => setShowOnlyMovingAverage(!showOnlyMovingAverage)}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600"
+                    aria-label="Toggle Moving Average Graph"
+                  >
+                    {showOnlyMovingAverage ? '− Hide Moving Average Graph' : '+ Show Moving Average Graph'}
+                  </button>
+                </div>
               )}
-            </div>
+
+              {/* Additional Moving Average Graph */}
+              {showOnlyMovingAverage && (
+                <div className="bg-white p-4 rounded shadow h-full mt-6" style={{ height: '500px' }}>
+                  {loading ? (
+                    <div className="flex justify-center items-center h-full">
+                      <p>Loading...</p>
+                    </div>
+                  ) : error ? (
+                    <p className="text-center text-red-500">Error: {error.message}</p>
+                  ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
+                    <Line
+                      data={movingAverageChartData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: 'top',
+                          },
+                          title: {
+                            display: true,
+                            text: 'Moving Average Lines',
+                          },
+                        },
+                        scales: selectedVariables.length > 1
+                          ? selectedVariables.reduce((acc, variable, index) => {
+                              acc[`y-axis-${index}`] = {
+                                type: 'linear',
+                                position: index % 2 === 0 ? 'left' : 'right',
+                                grid: {
+                                  drawOnChartArea: index === 0,
+                                },
+                                title: {
+                                  display: true,
+                                  text: variables.find((v) => v.value === variable).label,
+                                },
+                              };
+                              return acc;
+                            }, {})
+                          : {
+                              y: {
+                                title: {
+                                  display: true,
+                                  text: variables.find((v) => v.value === selectedVariables[0]).label,
+                                },
+                                beginAtZero: false,
+                              },
+                            },
+                      }}
+                    />
+                  ) : (
+                    <p className="text-center text-gray-500">No data available for the selected date range.</p>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <p className="text-center text-gray-500">Select one or more variables to display the graph.</p>
           )}

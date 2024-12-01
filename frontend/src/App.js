@@ -1,6 +1,6 @@
 // src/App.js
 import React, { useState, useEffect, useCallback } from 'react';
-import { useQuery } from '@apollo/client';
+import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from './queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
@@ -23,30 +23,20 @@ function App() {
     return regex.test(dateString);
   }, []);
 
-  const { loading, error, data, refetch } = useQuery(GET_WEATHER_DATA, {
-    variables: {
-      limit: 500, // Fixed limit
-      startDate: startDate || null, // Send as is
-      endDate: endDate || null,     // Send as is
-    },
+  // Initialize useLazyQuery
+  const [getWeatherData, { loading, error, data }] = useLazyQuery(GET_WEATHER_DATA, {
     fetchPolicy: 'network-only', // Always fetch from server
   });
 
   useEffect(() => {
-    // Validate dates before refetching
-    const isStartDateValid = startDate ? isValidDateFormat(startDate) : true;
-    const isEndDateValid = endDate ? isValidDateFormat(endDate) : true;
+    // Validate dates but do not refetch automatically
+    const isStartDateValid = startDate ? isValidDateFormat(startDate) : false;
+    const isEndDateValid = endDate ? isValidDateFormat(endDate) : false;
 
     setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
 
-    if (isStartDateValid && isEndDateValid) {
-      refetch({
-        limit: 500000,
-        startDate: startDate || null,
-        endDate: endDate || null,
-      });
-    }
-  }, [startDate, endDate, refetch, isValidDateFormat]);
+    // Removed automatic refetching
+  }, [startDate, endDate, isValidDateFormat]);
 
   const handleVariableChange = (event) => {
     const { value, checked } = event.target;
@@ -112,7 +102,7 @@ function App() {
 
     // No need to filter data on the frontend as the server already filters it
     const cleanedData = data.getWeatherData.filter((entry) => entry.wdatetime);
-
+  
     // If no data after filtering, return empty arrays
     if (cleanedData.length === 0) {
       return { labels: [], datasets: [] };
@@ -268,7 +258,7 @@ function App() {
           {/* Date Range Selector */}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Select Date Range</h3>
-            <div className="flex flex-col space-y-4">
+            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700">Start Date:</label>
                 <input
@@ -299,7 +289,26 @@ function App() {
                   <p className="text-red-500 text-sm mt-1">Invalid date format.</p>
                 )}
               </div>
-            </div>
+              {/* Apply Button */}
+              <button
+                onClick={() => {
+                  if (startDate && endDate && !dateError.startDate && !dateError.endDate) {
+                    getWeatherData({
+                      variables: {
+                        limit: 10000,
+                        startDate: startDate,
+                        endDate: endDate,
+                      },
+                    });
+                  }
+                }}
+                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+                disabled={!startDate || !endDate || dateError.startDate || dateError.endDate}
+                aria-label="Apply Date Range"
+              >
+                Apply
+              </button>
+            </form>
           </div>
         </div>
 

@@ -4,6 +4,7 @@ import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from './queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
+import Confetti from 'react-confetti';
 
 // Import the logo image
 import blackHoleLogo from './assets/black_hole.jpg'; // Ensure the path is correct
@@ -20,6 +21,13 @@ function App() {
   const [endDate, setEndDate] = useState(''); // Date string
   const [dateError, setDateError] = useState({ startDate: false, endDate: false }); // State for date validation
   const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(false); // State for additional graph
+
+  // Confetti state
+  const [confettiActive, setConfettiActive] = useState(false);
+  const [confettiDimensions, setConfettiDimensions] = useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -39,6 +47,19 @@ function App() {
     // Save preference to localStorage
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
+
+  // Handle window resize for confetti
+  useEffect(() => {
+    const handleResize = () => {
+      setConfettiDimensions({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -218,7 +239,7 @@ function App() {
       labels,
       datasets: [],
     };
-    
+
     // Moving Average Graph
     selectedVariables.forEach((variable, index) => {
       if (showMovingAverage && movingAverageWindow) {
@@ -259,11 +280,28 @@ function App() {
   const chartData = getChartData();
   const movingAverageChartData = getMovingAverageChartData();
 
+  // Function to trigger confetti
+  const triggerConfetti = () => {
+    setConfettiActive(true);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+      {/* Conditionally render Confetti */}
+      {confettiActive && (
+        <Confetti
+          width={confettiDimensions.width}
+          height={confettiDimensions.height}
+          recycle={false}
+          numberOfPieces={500}
+          onConfettiComplete={() => setConfettiActive(false)}
+        />
+      )}
+
       {/* Header */}
       <header className="bg-black text-white px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center">
+        {/* Make the logo and title clickable to trigger confetti */}
+        <div className="flex items-center cursor-pointer" onClick={triggerConfetti}>
           <img src={blackHoleLogo} alt="Black Hole Logo" className="h-8 w-8 mr-2" />
           <h1 className="text-lg font-semibold">Black Hole Astrophysics Group - Georgia Tech</h1>
         </div>
@@ -322,11 +360,10 @@ function App() {
             <div className="mt-6 flex items-center space-x-4">
               <button
                 onClick={handleMovingAverageToggle}
-                className={`px-4 py-2 rounded text-left focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 ${
-                  showMovingAverage
-                    ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
-                    : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
-                }`}
+                className={`px-4 py-2 rounded text-left focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 ${showMovingAverage
+                  ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
+                  : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
+                  }`}
               >
                 {showMovingAverage ? 'Hide Moving Average' : 'Show Moving Average'}
               </button>
@@ -360,9 +397,8 @@ function App() {
                   type="text"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className={`mt-1 block w-full border ${
-                    dateError.startDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
+                  className={`mt-1 block w-full border ${dateError.startDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
                   placeholder="YYYY-MM-DD HH:mm:ss"
                   aria-label="Start Date"
                 />
@@ -377,9 +413,8 @@ function App() {
                   type="text"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className={`mt-1 block w-full border ${
-                    dateError.endDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                  } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
+                  className={`mt-1 block w-full border ${dateError.endDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                    } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
                   placeholder="YYYY-MM-DD HH:mm:ss"
                   aria-label="End Date"
                 />
@@ -449,40 +484,40 @@ function App() {
                       },
                       scales: selectedVariables.length > 1
                         ? selectedVariables.reduce((acc, variable, index) => {
-                            acc[`y-axis-${index}`] = {
-                              type: 'linear',
-                              position: index % 2 === 0 ? 'left' : 'right',
-                              grid: {
-                                drawOnChartArea: index === 0,
-                                color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
-                              },
-                              title: {
-                                display: true,
-                                text: variables.find((v) => v.value === variable).label,
-                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
-                              },
-                              ticks: {
-                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
-                              },
-                            };
-                            return acc;
-                          }, {})
+                          acc[`y-axis-${index}`] = {
+                            type: 'linear',
+                            position: index % 2 === 0 ? 'left' : 'right',
+                            grid: {
+                              drawOnChartArea: index === 0,
+                              color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
+                            },
+                            title: {
+                              display: true,
+                              text: variables.find((v) => v.value === variable).label,
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
+                            },
+                            ticks: {
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
+                            },
+                          };
+                          return acc;
+                        }, {})
                         : {
-                            y: {
-                              title: {
-                                display: true,
-                                text: variables.find((v) => v.value === selectedVariables[0]).label,
-                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
-                              },
-                              ticks: {
-                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
-                              },
-                              beginAtZero: false,
-                              grid: {
-                                color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
-                              },
+                          y: {
+                            title: {
+                              display: true,
+                              text: variables.find((v) => v.value === selectedVariables[0]).label,
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
+                            },
+                            ticks: {
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
+                            },
+                            beginAtZero: false,
+                            grid: {
+                              color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
                             },
                           },
+                        },
                     }}
                   />
                 ) : (
@@ -533,40 +568,40 @@ function App() {
                         },
                         scales: selectedVariables.length > 1
                           ? selectedVariables.reduce((acc, variable, index) => {
-                              acc[`y-axis-${index}`] = {
-                                type: 'linear',
-                                position: index % 2 === 0 ? 'left' : 'right',
-                                grid: {
-                                  drawOnChartArea: index === 0,
-                                  color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
-                                },
-                                title: {
-                                  display: true,
-                                  text: variables.find((v) => v.value === variable).label,
-                                  color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
-                                },
-                                ticks: {
-                                  color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
-                                },
-                              };
-                              return acc;
-                            }, {})
+                            acc[`y-axis-${index}`] = {
+                              type: 'linear',
+                              position: index % 2 === 0 ? 'left' : 'right',
+                              grid: {
+                                drawOnChartArea: index === 0,
+                                color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
+                              },
+                              title: {
+                                display: true,
+                                text: variables.find((v) => v.value === variable).label,
+                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
+                              },
+                              ticks: {
+                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
+                              },
+                            };
+                            return acc;
+                          }, {})
                           : {
-                              y: {
-                                title: {
-                                  display: true,
-                                  text: variables.find((v) => v.value === selectedVariables[0]).label,
-                                  color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
-                                },
-                                ticks: {
-                                  color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
-                                },
-                                beginAtZero: false,
-                                grid: {
-                                  color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
-                                },
+                            y: {
+                              title: {
+                                display: true,
+                                text: variables.find((v) => v.value === selectedVariables[0]).label,
+                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis title color
+                              },
+                              ticks: {
+                                color: isDarkMode ? '#f3f4f6' : '#1f2937', // Y-axis tick color
+                              },
+                              beginAtZero: false,
+                              grid: {
+                                color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', // Grid color
                               },
                             },
+                          },
                       }}
                     />
                   ) : (

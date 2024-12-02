@@ -11,7 +11,7 @@ mongoose.connect('mongodb://localhost:27017/data_stream', {
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Define Mongoose Schema and Model
+// Define Mongoose Schema (shared by both collections)
 const weatherSchema = new mongoose.Schema({
   wdatetime: String, // Kept as String
   temperature_k: Number,
@@ -27,10 +27,17 @@ const weatherSchema = new mongoose.Schema({
   tau225ghz: Number,
 }, { collection: 'apex_2006_2023' });
 
-const Weather = mongoose.model('Weather', weatherSchema);
+// Define Models for Each Collection
+const WeatherApex = mongoose.model('WeatherApex', weatherSchema, 'apex_2006_2023');
+const WeatherGlt = mongoose.model('WeatherGlt', weatherSchema, 'glt_2017_2022');
 
 // GraphQL Type Definitions
 const typeDefs = gql`
+  enum CollectionName {
+    apex_2006_2023
+    glt_2017_2022
+  }
+
   type Weather {
     wdatetime: String
     temperature_k: Float
@@ -47,18 +54,31 @@ const typeDefs = gql`
   }
 
   type Query {
-    getWeatherData(limit: Int, startDate: String, endDate: String): [Weather]
-    getWeatherByDate(wdatetime: String!): Weather
+    getWeatherData(collection: CollectionName!, limit: Int, startDate: String, endDate: String): [Weather]
+    getWeatherByDate(collection: CollectionName!, wdatetime: String!): Weather
   }
 `;
 
 // GraphQL Resolvers
 const resolvers = {
   Query: {
-    getWeatherData: async (_, { limit, startDate, endDate }) => {
+    getWeatherData: async (_, { collection, limit, startDate, endDate }) => {
       try {
+        console.log('Received collection:', collection);
         console.log('Received startDate:', startDate);
         console.log('Received endDate:', endDate);
+
+        let WeatherModel;
+        switch (collection) {
+          case 'apex_2006_2023':
+            WeatherModel = WeatherApex;
+            break;
+          case 'glt_2017_2022':
+            WeatherModel = WeatherGlt;
+            break;
+          default:
+            throw new Error('Invalid collection name');
+        }
 
         const filter = {};
         if (startDate) {
@@ -70,11 +90,11 @@ const resolvers = {
         }
 
         // Optional: Sort in ascending order based on wdatetime
-        const data = await Weather.find(filter)
+        const data = await WeatherModel.find(filter)
           .limit(limit)
           .sort({ wdatetime: 1 });
 
-        console.log(`Fetched ${data.length} records from the database.`);
+        console.log(`Fetched ${data.length} records from the ${collection} collection.`);
 
         // Return data as is since wdatetime is a string
         return data.map(entry => ({
@@ -86,9 +106,21 @@ const resolvers = {
         return [];
       }
     },
-    getWeatherByDate: async (_, { wdatetime }) => {
+    getWeatherByDate: async (_, { collection, wdatetime }) => {
       try {
-        const data = await Weather.findOne({ wdatetime });
+        let WeatherModel;
+        switch (collection) {
+          case 'apex_2006_2023':
+            WeatherModel = WeatherApex;
+            break;
+          case 'glt_2017_2022':
+            WeatherModel = WeatherGlt;
+            break;
+          default:
+            throw new Error('Invalid collection name');
+        }
+
+        const data = await WeatherModel.findOne({ wdatetime });
         if (data) {
           return {
             ...data.toObject(),

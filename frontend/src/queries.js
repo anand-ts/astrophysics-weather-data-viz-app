@@ -2,8 +2,8 @@
 import { gql } from '@apollo/client';
 
 export const GET_WEATHER_DATA = gql`
-  query GetWeatherData($limit: Int, $startDate: String, $endDate: String) {
-    getWeatherData(limit: $limit, startDate: $startDate, endDate: $endDate) {
+  query GetWeatherData($collection: CollectionName!, $limit: Int, $startDate: String, $endDate: String) {
+    getWeatherData(collection: $collection, limit: $limit, startDate: $startDate, endDate: $endDate) {
       wdatetime
       temperature_k
       dewpoint_k

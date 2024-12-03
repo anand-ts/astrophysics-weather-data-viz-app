@@ -1,51 +1,22 @@
-# GT X-treme Astrophysics Data Visualization App
+# Astrophysics Weather Data Visualization Web App
 
-## This is W.I.P
+![Light Theme Screenshot](frontend/src/assets/weather-viz-light.png)
+![Dark Theme Screenshot](frontend/src/assets/weather-viz-dark.png)
 
-![Demo Screenshot](frontend/src/assets/demo_screenshot.png)
 
-## Create Conda environment for the MongoDB Data Pipeline
+## A web application for visualizing weather data from the Event Horizon Telescope (EHT), developed for the Black Hole Astrophysics Group at Georgia Tech's School of Physics.
 
-```
-conda create --name data_stream python=3.10
-conda activate data_stream
-```
+## Functionalities
+- Telescope Dataset Selection
+- Multiple Variable Selection
+- Data Range Selection
+- Graph Customization
+- Dynamic Charts
+- Dark Theme
+- Data Inspection
+- and more...
 
-## Install the required packages
-
-``` 
-conda install -c anaconda pymongo requests -c conda-forge matplotlib -y
-pip install schedule
-```
-
-## Install the required dependencies for the backend
-```
-npm install express apollo-server-express mongoose graphql node-cron
-npm install --save-dev nodemon
-```
-
-## Install the required dependencies for the frontend
-
-```
-cd client
-npm install @apollo/client graphql tailwindcss chart.js
-```
-
-## Start the mongodb service
-
-```
-brew services start mongodb-community@6.0
-```
-
-## Check if it's running
-
-```
-brew services list 
-```
-
-## Start backend/frontend services
-
-```
-npm start backend
-npm start frontend
-```
+## Tech Stack
+- React, Tailwind CSS, Chart.js
+- MongoDB, GraphQL, Node.js + Express, Apollo
+- and with ❤️

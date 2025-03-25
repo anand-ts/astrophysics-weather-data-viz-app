@@ -2,6 +2,7 @@
 const express = require('express');
 const { ApolloServer, gql } = require('apollo-server-express');
 const mongoose = require('mongoose');
+const cors = require('cors'); // Add CORS support
 
 // Connect to MongoDB
 mongoose.connect('mongodb://localhost:27017/data_stream', {
@@ -11,7 +12,7 @@ mongoose.connect('mongodb://localhost:27017/data_stream', {
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Define Mongoose Schema (shared by both collections)
+// Define Mongoose Schema (shared by all collections)
 const weatherSchema = new mongoose.Schema({
   wdatetime: String, // Kept as String
   temperature_k: Number,
@@ -27,15 +28,32 @@ const weatherSchema = new mongoose.Schema({
   tau225ghz: Number,
 }, { collection: 'apex_2006_2023' });
 
-// Define Models for Each Collection
+// Define Models for Each Collection (only creating models for the ones we have data for)
 const WeatherApex = mongoose.model('WeatherApex', weatherSchema, 'apex_2006_2023');
 const WeatherGlt = mongoose.model('WeatherGlt', weatherSchema, 'glt_2017_2022');
+
+// Add placeholder models for other telescopes (these would be replaced with real data when available)
+const weatherModelMap = {
+  'apex_2006_2023': WeatherApex,
+  'glt_2017_2022': WeatherGlt,
+  // When real data becomes available, replace these lines:
+  'jcmt_data': WeatherApex, // Using Apex as placeholder
+  'sma_data': WeatherApex,  // Using Apex as placeholder
+  'smt_data': WeatherApex,  // Using Apex as placeholder
+  'lmt_data': WeatherApex,  // Using Apex as placeholder
+  'alma_data': WeatherApex,  // Using Apex as placeholder
+};
 
 // GraphQL Type Definitions
 const typeDefs = gql`
   enum CollectionName {
     apex_2006_2023
     glt_2017_2022
+    jcmt_data
+    sma_data
+    smt_data
+    lmt_data
+    alma_data
   }
 
   type Weather {
@@ -68,16 +86,9 @@ const resolvers = {
         console.log('Received startDate:', startDate);
         console.log('Received endDate:', endDate);
 
-        let WeatherModel;
-        switch (collection) {
-          case 'apex_2006_2023':
-            WeatherModel = WeatherApex;
-            break;
-          case 'glt_2017_2022':
-            WeatherModel = WeatherGlt;
-            break;
-          default:
-            throw new Error('Invalid collection name');
+        const WeatherModel = weatherModelMap[collection];
+        if (!WeatherModel) {
+          throw new Error('Invalid collection name');
         }
 
         const filter = {};
@@ -91,7 +102,7 @@ const resolvers = {
 
         // Optional: Sort in ascending order based on wdatetime
         const data = await WeatherModel.find(filter)
-          .limit(limit)
+          .limit(limit || 1000) // Default limit of 1000 if none provided
           .sort({ wdatetime: 1 });
 
         console.log(`Fetched ${data.length} records from the ${collection} collection.`);
@@ -108,16 +119,9 @@ const resolvers = {
     },
     getWeatherByDate: async (_, { collection, wdatetime }) => {
       try {
-        let WeatherModel;
-        switch (collection) {
-          case 'apex_2006_2023':
-            WeatherModel = WeatherApex;
-            break;
-          case 'glt_2017_2022':
-            WeatherModel = WeatherGlt;
-            break;
-          default:
-            throw new Error('Invalid collection name');
+        const WeatherModel = weatherModelMap[collection];
+        if (!WeatherModel) {
+          throw new Error('Invalid collection name');
         }
 
         const data = await WeatherModel.findOne({ wdatetime });
@@ -141,6 +145,10 @@ const server = new ApolloServer({ typeDefs, resolvers });
 
 // Apply Middleware to Express App
 const app = express();
+
+// Enable CORS for all routes
+app.use(cors());
+
 server.start().then(res => {
   server.applyMiddleware({ app });
 

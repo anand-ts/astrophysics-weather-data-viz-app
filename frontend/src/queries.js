@@ -19,3 +19,6 @@ export const GET_WEATHER_DATA = gql`
     }
   }
 `;
+
+// Removing the problematic GET_TELESCOPE_DATA query and 
+// we'll use GET_WEATHER_DATA multiple times instead

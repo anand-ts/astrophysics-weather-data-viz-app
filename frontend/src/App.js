@@ -7,7 +7,7 @@ import 'chart.js/auto';
 import Confetti from 'react-confetti';
 
 // Import the logo image
-import blackHoleLogo from './assets/black_hole.jpg'; // Ensure the path is correct
+import blackHoleLogo from './assets/black_hole.jpg';
 
 // Import Heroicons for the toggle button
 import { SunIcon, MoonIcon } from '@heroicons/react/solid';

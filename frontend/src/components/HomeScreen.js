@@ -1,13 +1,55 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+// Import icons for dark/light mode toggle
+import { SunIcon, MoonIcon } from '@heroicons/react/solid';
+
+// Import the logo image
+import blackHoleLogo from '../assets/black_hole.jpg';
 
 function HomeScreen() {
+  // Dark mode state
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme === 'dark' ? true : false;
+  });
+
+  // Update the HTML element's class based on dark mode state
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  // Toggle dark mode
+  const toggleDarkMode = () => {
+    setIsDarkMode(!isDarkMode);
+  };
+
   return (
     <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       <header className="bg-black text-white px-4 py-2 flex items-center justify-between">
         <div className="flex items-center">
-          <h1 className="text-lg font-semibold">Black Hole Astrophysics Group - Georgia Tech</h1>
+          <div className="flex items-center">
+            <img src={blackHoleLogo} alt="Black Hole Logo" className="h-8 w-8 mr-2" />
+            <h1 className="text-lg font-semibold">Black Hole Astrophysics Group - Georgia Tech</h1>
+          </div>
         </div>
+        {/* Dark Mode Toggle Button */}
+        <button
+          onClick={toggleDarkMode}
+          className="p-2 rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+          aria-label="Toggle Dark Mode"
+        >
+          {isDarkMode ? (
+            <SunIcon className="h-6 w-6 text-yellow-400" />
+          ) : (
+            <MoonIcon className="h-6 w-6 text-gray-200" />
+          )}
+        </button>
       </header>
 
       <div className="container mx-auto px-4 py-16">
@@ -43,7 +85,7 @@ function HomeScreen() {
       </div>
 
       <footer className="bg-gray-100 dark:bg-gray-800 p-4 text-center mt-auto">
-        <p>© 2023 Black Hole Astrophysics Group - Georgia Tech</p>
+        <p>© 2025 Black Hole Astrophysics Group - Georgia Tech</p>
       </footer>
     </div>
   );

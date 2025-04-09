@@ -30,7 +30,7 @@ function HomeScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300 flex flex-col">
       <header className="bg-black text-white px-4 py-2 flex items-center justify-between">
         <div className="flex items-center">
           <div className="flex items-center">
@@ -52,7 +52,7 @@ function HomeScreen() {
         </button>
       </header>
 
-      <div className="container mx-auto px-4 py-16">
+      <div className="container mx-auto px-4 py-16 flex-1">
         <h1 className="text-3xl font-bold text-center mb-12">Weather Data Visualization</h1>
         
         <div className="flex flex-col md:flex-row justify-center items-center gap-8">
@@ -84,7 +84,7 @@ function HomeScreen() {
         </div>
       </div>
 
-      <footer className="bg-gray-100 dark:bg-gray-800 p-4 text-center mt-auto">
+      <footer className="bg-gray-100 dark:bg-gray-800 p-4 text-center text-gray-800 dark:text-gray-200 transition-colors duration-300">
         <p>© 2025 Black Hole Astrophysics Group - Georgia Tech</p>
       </footer>
     </div>

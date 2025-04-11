@@ -22,6 +22,10 @@ function VariableView() {
   const [dateError, setDateError] = useState({ startDate: false, endDate: false });
   const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(false);
 
+  // New state variables for statistics
+  const [showStatistics, setShowStatistics] = useState(false);
+  const [showCorrelation, setShowCorrelation] = useState(false);
+
   // Confetti state
   const [confettiActive, setConfettiActive] = useState(false);
   const [confettiDimensions, setConfettiDimensions] = useState({
@@ -258,6 +262,181 @@ function VariableView() {
     return chartData;
   };
 
+  const calculateMean = (data, variable) => {
+    if (!data || data.length === 0) return 0;
+
+    const validValues = data
+      .map(entry => entry[variable])
+      .filter(value => value !== undefined && value !== null && !isNaN(value));
+
+    if (validValues.length === 0) return 0;
+
+    const sum = validValues.reduce((acc, curr) => acc + curr, 0);
+    return sum / validValues.length;
+  };
+
+  const calculateStdDev = (data, variable) => {
+    if (!data || data.length === 0) return 0;
+
+    const validValues = data
+      .map(entry => entry[variable])
+      .filter(value => value !== undefined && value !== null && !isNaN(value));
+
+    if (validValues.length === 0) return 0;
+
+    const mean = validValues.reduce((acc, curr) => acc + curr, 0) / validValues.length;
+    const squaredDifferences = validValues.map(value => Math.pow(value - mean, 2));
+    const variance = squaredDifferences.reduce((acc, curr) => acc + curr, 0) / validValues.length;
+    return Math.sqrt(variance);
+  };
+
+  const calculateCorrelation = (data, var1, var2) => {
+    if (!data || data.length === 0 || !var1 || !var2) return 0;
+
+    const pairs = data.map(entry => [entry[var1], entry[var2]])
+      .filter(pair => pair[0] !== undefined && pair[0] !== null && !isNaN(pair[0]) &&
+                      pair[1] !== undefined && pair[1] !== null && !isNaN(pair[1]));
+
+    if (pairs.length < 2) return 0;
+
+    const mean1 = pairs.reduce((sum, pair) => sum + pair[0], 0) / pairs.length;
+    const mean2 = pairs.reduce((sum, pair) => sum + pair[1], 0) / pairs.length;
+
+    let covariance = 0;
+    let variance1 = 0;
+    let variance2 = 0;
+
+    for (const pair of pairs) {
+      const diff1 = pair[0] - mean1;
+      const diff2 = pair[1] - mean2;
+
+      covariance += diff1 * diff2;
+      variance1 += diff1 * diff1;
+      variance2 += diff2 * diff2;
+    }
+
+    covariance /= pairs.length;
+    variance1 /= pairs.length;
+    variance2 /= pairs.length;
+
+    if (variance1 === 0 || variance2 === 0) return 0;
+
+    return covariance / (Math.sqrt(variance1) * Math.sqrt(variance2));
+  };
+
+  const StatisticsDisplay = ({ data, selectedVariables, variables }) => {
+    if (!data || data.length === 0 || selectedVariables.length === 0) {
+      return <p className="text-center text-gray-500 dark:text-gray-400">No data available for statistics.</p>;
+    }
+
+    const cleanedData = data.filter(entry => entry.wdatetime);
+
+    return (
+      <div className="mt-6 bg-white dark:bg-gray-800 p-4 rounded shadow transition-colors duration-300">
+        <h3 className="text-lg font-semibold mb-2">Statistics</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-4 py-2 text-left">Variable</th>
+                <th className="px-4 py-2 text-right">Mean</th>
+                <th className="px-4 py-2 text-right">Std Dev</th>
+                <th className="px-4 py-2 text-right">Min</th>
+                <th className="px-4 py-2 text-right">Max</th>
+                <th className="px-4 py-2 text-right">Count</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {selectedVariables.map(variable => {
+                const validValues = cleanedData
+                  .map(entry => entry[variable])
+                  .filter(value => value !== undefined && value !== null && !isNaN(value));
+
+                const mean = calculateMean(cleanedData, variable);
+                const stdDev = calculateStdDev(cleanedData, variable);
+                const min = Math.min(...validValues);
+                const max = Math.max(...validValues);
+                const count = validValues.length;
+
+                const variableLabel = variables.find(v => v.value === variable)?.label || variable;
+
+                return (
+                  <tr key={variable}>
+                    <td className="px-4 py-2">{variableLabel}</td>
+                    <td className="px-4 py-2 text-right">{mean.toFixed(4)}</td>
+                    <td className="px-4 py-2 text-right">{stdDev.toFixed(4)}</td>
+                    <td className="px-4 py-2 text-right">{min.toFixed(4)}</td>
+                    <td className="px-4 py-2 text-right">{max.toFixed(4)}</td>
+                    <td className="px-4 py-2 text-right">{count}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
+  const CorrelationMatrix = ({ data, selectedVariables, variables }) => {
+    if (!data || data.length === 0 || selectedVariables.length < 2) {
+      return <p className="text-center text-gray-500 dark:text-gray-400">Select at least two variables to display correlations.</p>;
+    }
+
+    const cleanedData = data.filter(entry => entry.wdatetime);
+
+    return (
+      <div className="mt-6 bg-white dark:bg-gray-800 p-4 rounded shadow transition-colors duration-300">
+        <h3 className="text-lg font-semibold mb-2">Correlation Matrix</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-700">
+              <tr>
+                <th className="px-4 py-2"></th>
+                {selectedVariables.map(variable => {
+                  const variableLabel = variables.find(v => v.value === variable)?.label || variable;
+                  return (
+                    <th key={variable} className="px-4 py-2 text-right">
+                      {variableLabel}
+                    </th>
+                  );
+                })}
+              </tr>
+            </thead>
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+              {selectedVariables.map(var1 => {
+                const var1Label = variables.find(v => v.value === var1)?.label || var1;
+
+                return (
+                  <tr key={var1}>
+                    <td className="px-4 py-2 font-medium">{var1Label}</td>
+                    {selectedVariables.map(var2 => {
+                      const correlation = var1 === var2 ? 1 : calculateCorrelation(cleanedData, var1, var2);
+
+                      let colorClass = '';
+                      const absCorr = Math.abs(correlation);
+                      if (absCorr > 0.7) {
+                        colorClass = correlation > 0 ? 'bg-green-100 dark:bg-green-900' : 'bg-red-100 dark:bg-red-900';
+                      } else if (absCorr > 0.4) {
+                        colorClass = correlation > 0 ? 'bg-green-50 dark:bg-green-800' : 'bg-red-50 dark:bg-red-800';
+                      }
+
+                      return (
+                        <td key={`${var1}-${var2}`} className={`px-4 py-2 text-right ${colorClass}`}>
+                          {correlation.toFixed(3)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  };
+
   const variables = [
     { label: 'Temperature (K)', value: 'temperature_k' },
     { label: 'Dew Point (K)', value: 'dewpoint_k' },
@@ -383,6 +562,37 @@ function VariableView() {
                   )}
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Statistical Analysis Controls */}
+          {selectedVariables.length > 0 && data && data.getWeatherData && data.getWeatherData.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-2">Statistical Analysis</h3>
+              <div className="flex flex-col space-y-2">
+                <button
+                  onClick={() => setShowStatistics(!showStatistics)}
+                  className={`px-4 py-2 rounded transition-colors duration-300 ${
+                    showStatistics
+                      ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
+                      : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
+                  }`}
+                >
+                  {showStatistics ? 'Hide Statistics' : 'Show Statistics'}
+                </button>
+
+                <button
+                  onClick={() => setShowCorrelation(!showCorrelation)}
+                  className={`px-4 py-2 rounded transition-colors duration-300 ${
+                    showCorrelation
+                      ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
+                      : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
+                  }`}
+                  disabled={selectedVariables.length < 2}
+                >
+                  {showCorrelation ? 'Hide Correlation' : 'Show Correlation'}
+                </button>
+              </div>
             </div>
           )}
 
@@ -607,6 +817,24 @@ function VariableView() {
                     <p className="text-center text-gray-500 dark:text-gray-400">No data available for the selected date range.</p>
                   )}
                 </div>
+              )}
+
+              {/* Statistics Display */}
+              {showStatistics && data && data.getWeatherData && (
+                <StatisticsDisplay
+                  data={data.getWeatherData}
+                  selectedVariables={selectedVariables}
+                  variables={variables}
+                />
+              )}
+
+              {/* Correlation Matrix */}
+              {showCorrelation && data && data.getWeatherData && (
+                <CorrelationMatrix
+                  data={data.getWeatherData}
+                  selectedVariables={selectedVariables}
+                  variables={variables}
+                />
               )}
             </>
           ) : (

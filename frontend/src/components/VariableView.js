@@ -533,15 +533,17 @@ function VariableView() {
             ))}
           </div>
 
-          {/* Moving Average Controls */}
-          {selectedVariables.length > 0 && (
-            <div className="mt-6 flex items-center space-x-4">
+          {/* Moving Average Controls - Always visible */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-2">Moving Average</h3>
+            <div className="flex items-center space-x-4">
               <button
                 onClick={handleMovingAverageToggle}
                 className={`px-4 py-2 rounded text-left focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 ${showMovingAverage
                   ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
                   : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
                   }`}
+                disabled={selectedVariables.length === 0}
               >
                 {showMovingAverage ? 'Hide Moving Average' : 'Show Moving Average'}
               </button>
@@ -563,38 +565,37 @@ function VariableView() {
                 </div>
               )}
             </div>
-          )}
+          </div>
 
-          {/* Statistical Analysis Controls */}
-          {selectedVariables.length > 0 && data && data.getWeatherData && data.getWeatherData.length > 0 && (
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-2">Statistical Analysis</h3>
-              <div className="flex flex-col space-y-2">
-                <button
-                  onClick={() => setShowStatistics(!showStatistics)}
-                  className={`px-4 py-2 rounded transition-colors duration-300 ${
-                    showStatistics
-                      ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
-                      : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
-                  }`}
-                >
-                  {showStatistics ? 'Hide Statistics' : 'Show Statistics'}
-                </button>
-
-                <button
-                  onClick={() => setShowCorrelation(!showCorrelation)}
-                  className={`px-4 py-2 rounded transition-colors duration-300 ${
-                    showCorrelation
-                      ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
-                      : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
-                  }`}
-                  disabled={selectedVariables.length < 2}
-                >
-                  {showCorrelation ? 'Hide Correlation' : 'Show Correlation'}
-                </button>
-              </div>
+          {/* Statistical Analysis Controls - Always visible */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-2">Statistical Analysis</h3>
+            <div className="flex flex-col space-y-2">
+              <button
+                onClick={() => setShowStatistics(!showStatistics)}
+                className={`px-4 py-2 rounded transition-colors duration-300 ${
+                  showStatistics
+                    ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
+                    : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
+                }`}
+                disabled={!data || !data.getWeatherData || selectedVariables.length === 0}
+              >
+                {showStatistics ? 'Hide Statistics' : 'Show Statistics'}
+              </button>
+              
+              <button
+                onClick={() => setShowCorrelation(!showCorrelation)}
+                className={`px-4 py-2 rounded transition-colors duration-300 ${
+                  showCorrelation
+                    ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
+                    : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
+                }`}
+                disabled={!data || !data.getWeatherData || selectedVariables.length < 2}
+              >
+                {showCorrelation ? 'Hide Correlation' : 'Show Correlation'}
+              </button>
             </div>
-          )}
+          </div>
 
           {/* Date Range Selector */}
           <div className="mt-6">

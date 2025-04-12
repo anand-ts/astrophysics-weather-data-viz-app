@@ -1041,6 +1041,11 @@ function VariableView() {
           )}
         </div>
       </div>
+
+      {/* Footer */}
+      <footer className="bg-gray-100 dark:bg-gray-800 p-4 text-center text-gray-800 dark:text-gray-200 transition-colors duration-300">
+        <p>© 2025 Black Hole Astrophysics Group - Georgia Tech</p>
+      </footer>
     </div>
   );
 }

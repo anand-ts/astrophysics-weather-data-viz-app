@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 const cors = require('cors'); // Add CORS support
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost:27017/data_stream', {
+mongoose.connect('mongodb://mongodb:27017/data_stream', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })

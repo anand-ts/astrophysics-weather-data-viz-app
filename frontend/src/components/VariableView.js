@@ -3,13 +3,19 @@ import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from '../queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
+// Fix the zoom plugin import
+import { Chart } from 'chart.js';
+import Zoom from 'chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js';
 import { Link } from 'react-router-dom';
 
 // Import the logo image
 import blackHoleLogo from '../assets/black_hole.jpg';
 
 // Fix heroicons import with correct component names
-import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon } from '@heroicons/react/solid';
+import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon } from '@heroicons/react/solid';
+
+// Register Zoom Plugin
+Chart.register(Zoom);
 
 function VariableView() {
   const [selectedCollection, setSelectedCollection] = useState('apex_2006_2023');
@@ -454,6 +460,12 @@ function VariableView() {
     }
   };
 
+  const resetZoom = (chartRef) => {
+    if (chartRef && chartRef.current) {
+      chartRef.current.resetZoom();
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {/* Header */}
@@ -654,15 +666,26 @@ function VariableView() {
                       ? variables.find((v) => v.value === selectedVariables[0]).label
                       : 'Selected Variables Comparison'}
                   </h2>
-                  <button
-                    onClick={() => exportChartAsPNG(mainChartRef, 'weather-data-chart')}
-                    className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                    disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
-                    title="Export as PNG"
-                  >
-                    <DownloadIcon className="h-4 w-4 mr-1" />
-                    Export PNG
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => resetZoom(mainChartRef)}
+                      className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                      disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                      title="Reset Zoom"
+                    >
+                      <RefreshIcon className="h-4 w-4 mr-1" />
+                      Reset Zoom
+                    </button>
+                    <button
+                      onClick={() => exportChartAsPNG(mainChartRef, 'weather-data-chart')}
+                      className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                      disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                      title="Export as PNG"
+                    >
+                      <DownloadIcon className="h-4 w-4 mr-1" />
+                      Export PNG
+                    </button>
+                  </div>
                 </div>
                 <div className="h-[500px]">
                   {loading && !showOnlyMovingAverage ? (
@@ -692,6 +715,29 @@ function VariableView() {
                                 ? variables.find((v) => v.value === selectedVariables[0]).label
                                 : 'Selected Variables Comparison',
                             color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                          zoom: {
+                            pan: {
+                              enabled: true,
+                              mode: 'xy',
+                              modifierKey: 'shift',
+                            },
+                            zoom: {
+                              wheel: {
+                                enabled: true,
+                              },
+                              pinch: {
+                                enabled: true,
+                              },
+                              drag: {
+                                enabled: true,
+                                backgroundColor: isDarkMode ? 'rgba(128,128,128,0.3)' : 'rgba(225,225,225,0.3)',
+                                borderColor: isDarkMode ? 'rgba(128,128,128)' : 'rgba(225,225,225)',
+                                borderWidth: 1,
+                                threshold: 10,
+                              },
+                              mode: 'xy',
+                            },
                           },
                         },
                         scales: selectedVariables.length > 1
@@ -756,15 +802,26 @@ function VariableView() {
                 <div className="bg-white dark:bg-gray-800 p-4 rounded shadow mt-6 transition-colors duration-300">
                   <div className="flex justify-between items-center mb-4">
                     <h2 className="text-lg font-semibold">Moving Average Lines</h2>
-                    <button
-                      onClick={() => exportChartAsPNG(maChartRef, 'moving-average-chart')}
-                      className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                      disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
-                      title="Export as PNG"
-                    >
-                      <DownloadIcon className="h-4 w-4 mr-1" />
-                      Export PNG
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => resetZoom(maChartRef)}
+                        className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                        disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                        title="Reset Zoom"
+                      >
+                        <RefreshIcon className="h-4 w-4 mr-1" />
+                        Reset Zoom
+                      </button>
+                      <button
+                        onClick={() => exportChartAsPNG(maChartRef, 'moving-average-chart')}
+                        className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                        disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                        title="Export as PNG"
+                      >
+                        <DownloadIcon className="h-4 w-4 mr-1" />
+                        Export PNG
+                      </button>
+                    </div>
                   </div>
                   <div className="h-[500px]">
                     {loading ? (
@@ -791,6 +848,29 @@ function VariableView() {
                               display: true,
                               text: 'Moving Average Lines',
                               color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                            },
+                            zoom: {
+                              pan: {
+                                enabled: true,
+                                mode: 'xy',
+                                modifierKey: 'shift',
+                              },
+                              zoom: {
+                                wheel: {
+                                  enabled: true,
+                                },
+                                pinch: {
+                                  enabled: true,
+                                },
+                                drag: {
+                                  enabled: true,
+                                  backgroundColor: isDarkMode ? 'rgba(128,128,128,0.3)' : 'rgba(225,225,225,0.3)',
+                                  borderColor: isDarkMode ? 'rgba(128,128,128)' : 'rgba(225,225,225)',
+                                  borderWidth: 1,
+                                  threshold: 10,
+                                },
+                                mode: 'xy',
+                              },
                             },
                           },
                           scales: selectedVariables.length > 1

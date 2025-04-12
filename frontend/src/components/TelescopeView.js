@@ -1,15 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from '../queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
+// Fix the zoom plugin import
+import { Chart } from 'chart.js';
+import Zoom from 'chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js';
 import { Link } from 'react-router-dom';
 
 // Import the logo image
 import blackHoleLogo from '../assets/black_hole.jpg';
 
 // Fix heroicons import
-import { ArrowLeftIcon, SunIcon, MoonIcon } from '@heroicons/react/solid';
+import { ArrowLeftIcon, SunIcon, MoonIcon, RefreshIcon } from '@heroicons/react/solid';
+
+// Register Zoom Plugin
+Chart.register(Zoom);
 
 function TelescopeView() {
   const [selectedVariable, setSelectedVariable] = useState('temperature_k');
@@ -282,6 +288,16 @@ function TelescopeView() {
 
   const chartData = getChartData();
 
+  // Add chart reference for zoom reset
+  const chartRef = useRef(null);
+  
+  // Add a function to reset zoom
+  const resetZoom = () => {
+    if (chartRef && chartRef.current) {
+      chartRef.current.resetZoom();
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {/* Header */}
@@ -430,63 +446,104 @@ function TelescopeView() {
           {selectedTelescopes.length > 0 ? (
             <>
               {/* Main Graph */}
-              <div className="bg-white dark:bg-gray-800 p-4 rounded shadow h-[500px] transition-colors duration-300">
-                {isLoading ? (
-                  <div className="flex justify-center items-center h-full">
-                    <p>Loading...</p>
-                  </div>
-                ) : queryError ? (
-                  <p className="text-center text-red-500">Error: {queryError.message}</p>
-                ) : Object.keys(telescopeData).length > 0 ? (
-                  <Line
-                    data={chartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'top',
-                          labels: {
-                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+              <div className="bg-white dark:bg-gray-800 p-4 rounded shadow transition-colors duration-300">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">
+                    {variables.find(v => v.value === selectedVariable).label} Across Selected Telescopes
+                  </h2>
+                  <button
+                    onClick={resetZoom}
+                    className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                    disabled={Object.keys(telescopeData).length === 0}
+                    title="Reset Zoom"
+                  >
+                    <RefreshIcon className="h-4 w-4 mr-1" />
+                    Reset Zoom
+                  </button>
+                </div>
+                <div className="h-[500px]">
+                  {isLoading ? (
+                    <div className="flex justify-center items-center h-full">
+                      <p>Loading...</p>
+                    </div>
+                  ) : queryError ? (
+                    <p className="text-center text-red-500">Error: {queryError.message}</p>
+                  ) : Object.keys(telescopeData).length > 0 ? (
+                    <Line
+                      ref={chartRef}
+                      data={chartData}
+                      options={{
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                          legend: {
+                            position: 'top',
+                            labels: {
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                            },
                           },
-                        },
-                        title: {
-                          display: true,
-                          text: `${variables.find(v => v.value === selectedVariable).label} Across Selected Telescopes`,
-                          color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                        },
-                      },
-                      scales: {
-                        y: {
                           title: {
                             display: true,
-                            text: variables.find(v => v.value === selectedVariable).label,
+                            text: `${variables.find(v => v.value === selectedVariable).label} Across Selected Telescopes`,
                             color: isDarkMode ? '#f3f4f6' : '#1f2937',
                           },
-                          ticks: {
-                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                          },
-                          beginAtZero: false,
-                          grid: {
-                            color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                          // Add zoom plugin configuration
+                          zoom: {
+                            pan: {
+                              enabled: true,
+                              mode: 'xy',
+                              modifierKey: 'shift',
+                            },
+                            zoom: {
+                              wheel: {
+                                enabled: true,
+                              },
+                              pinch: {
+                                enabled: true,
+                              },
+                              drag: {
+                                enabled: true,
+                                backgroundColor: isDarkMode ? 'rgba(128,128,128,0.3)' : 'rgba(225,225,225,0.3)',
+                                borderColor: isDarkMode ? 'rgba(128,128,128)' : 'rgba(225,225,225)',
+                                borderWidth: 1,
+                                threshold: 10,
+                              },
+                              mode: 'xy',
+                            },
                           },
                         },
-                        x: {
-                          ticks: {
-                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                            maxRotation: 45,
-                            minRotation: 45,
+                        scales: {
+                          y: {
+                            title: {
+                              display: true,
+                              text: variables.find(v => v.value === selectedVariable).label,
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                            },
+                            ticks: {
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                            },
+                            beginAtZero: false,
+                            grid: {
+                              color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                            },
                           },
-                          grid: {
-                            color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                          },
+                          x: {
+                            ticks: {
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                              maxRotation: 45,
+                              minRotation: 45,
+                            },
+                            grid: {
+                              color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                            },
+                          }
                         }
-                      }
-                    }}
-                  />
-                ) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400">No data available. Please apply a date range filter.</p>
-                )}
+                      }}
+                    />
+                  ) : (
+                    <p className="text-center text-gray-500 dark:text-gray-400">No data available. Please apply a date range filter.</p>
+                  )}
+                </div>
               </div>
             </>
           ) : (

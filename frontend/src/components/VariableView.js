@@ -717,12 +717,14 @@ function VariableView() {
                           zoom: {
                             pan: {
                               enabled: true,
-                              mode: 'xy',
+                              mode: 'x',
                               modifierKey: 'shift',
                             },
                             zoom: {
                               wheel: {
                                 enabled: true,
+                                speed: 0.02,  // Reduced from default (0.1 is more gentle)
+                                sensitivity: 0.02,  // Lower sensitivity for smoother zoom
                               },
                               pinch: {
                                 enabled: true,
@@ -734,7 +736,7 @@ function VariableView() {
                                 borderWidth: 1,
                                 threshold: 10,
                               },
-                              mode: 'xy',
+                              mode: 'x',
                             },
                           },
                         },
@@ -850,12 +852,14 @@ function VariableView() {
                             zoom: {
                               pan: {
                                 enabled: true,
-                                mode: 'xy',
+                                mode: 'x',
                                 modifierKey: 'shift',
                               },
                               zoom: {
                                 wheel: {
                                   enabled: true,
+                                  speed: 0.1,  // Reduced from default 
+                                  sensitivity: 0.1,  // Lower sensitivity
                                 },
                                 pinch: {
                                   enabled: true,
@@ -867,7 +871,7 @@ function VariableView() {
                                   borderWidth: 1,
                                   threshold: 10,
                                 },
-                                mode: 'xy',
+                                mode: 'x',
                               },
                             },
                           },

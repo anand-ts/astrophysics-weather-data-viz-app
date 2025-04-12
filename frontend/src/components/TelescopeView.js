@@ -491,12 +491,14 @@ function TelescopeView() {
                           zoom: {
                             pan: {
                               enabled: true,
-                              mode: 'xy',
+                              mode: 'x',
                               modifierKey: 'shift',
                             },
                             zoom: {
                               wheel: {
                                 enabled: true,
+                                speed: 0.1,  // Reduced from default
+                                sensitivity: 0.1,  // Lower sensitivity for smoother zoom
                               },
                               pinch: {
                                 enabled: true,
@@ -508,7 +510,7 @@ function TelescopeView() {
                                 borderWidth: 1,
                                 threshold: 10,
                               },
-                              mode: 'xy',
+                              mode: 'x',
                             },
                           },
                         },

@@ -84,8 +84,6 @@ function VariableView() {
     } else {
       setSelectedVariables((prev) => prev.filter((item) => item !== value));
     }
-    setShowMovingAverage(false);
-    setShowOnlyMovingAverage(false);
   };
 
   const handleMovingAverageToggle = () => {

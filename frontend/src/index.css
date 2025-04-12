@@ -3,16 +3,42 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  html {
+    @apply bg-white dark:bg-black;
+    background-color: white !important;
+    min-height: 100%;
+    overscroll-behavior: none;
+  }
+  
+  html.dark {
+    background-color: black !important;
+  }
+  
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    @apply bg-white dark:bg-gray-900;
+    min-height: 100vh;
+  }
+  
+  /* This ensures the page background stays black in dark mode when scrolling */
+  html.dark body {
+    background-color: rgb(17, 24, 39) !important;
+  }
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
+}
+
+/* Fix for overscroll areas */
+#root {
+  min-height: 100vh;
+  @apply bg-white dark:bg-gray-900;
 }

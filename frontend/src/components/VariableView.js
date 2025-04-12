@@ -3,7 +3,6 @@ import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from '../queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
-import Confetti from 'react-confetti';
 import { Link } from 'react-router-dom';
 
 // Import the logo image
@@ -26,13 +25,6 @@ function VariableView() {
   const [showStatistics, setShowStatistics] = useState(false);
   const [showCorrelation, setShowCorrelation] = useState(false);
 
-  // Confetti state
-  const [confettiActive, setConfettiActive] = useState(false);
-  const [confettiDimensions, setConfettiDimensions] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
-  });
-
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -49,19 +41,6 @@ function VariableView() {
     }
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
-
-  // Handle window resize for confetti
-  useEffect(() => {
-    const handleResize = () => {
-      setConfettiDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight,
-      });
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -454,31 +433,15 @@ function VariableView() {
   const chartData = getChartData();
   const movingAverageChartData = getMovingAverageChartData();
 
-  // Function to trigger confetti
-  const triggerConfetti = () => {
-    setConfettiActive(true);
-  };
-
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
-      {/* Conditionally render Confetti */}
-      {confettiActive && (
-        <Confetti
-          width={confettiDimensions.width}
-          height={confettiDimensions.height}
-          recycle={false}
-          numberOfPieces={500}
-          onConfettiComplete={() => setConfettiActive(false)}
-        />
-      )}
-
       {/* Header */}
       <header className="bg-black text-white px-4 py-2 flex items-center justify-between">
         <div className="flex items-center">
           <Link to="/" className="mr-4 hover:text-gray-300">
             <ArrowLeftIcon className="h-6 w-6" />
           </Link>
-          <div className="flex items-center cursor-pointer" onClick={triggerConfetti}>
+          <div className="flex items-center">
             <img src={blackHoleLogo} alt="Black Hole Logo" className="h-8 w-8 mr-2" />
             <h1 className="text-lg font-semibold">Black Hole Astrophysics Group - Georgia Tech</h1>
           </div>

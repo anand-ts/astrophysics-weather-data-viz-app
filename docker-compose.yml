@@ -1,0 +1,48 @@
+version: '3'
+
+services:
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ./
+      dockerfile: backend/Dockerfile
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/data_stream
+    networks:
+      - app-network
+    volumes:
+      - ./backend:/app/backend
+      - /app/backend/node_modules
+
+  frontend:
+    build:
+      context: ./
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mongo-data:

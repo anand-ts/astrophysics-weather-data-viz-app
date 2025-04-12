@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from '../queries';
 import { Line } from 'react-chartjs-2';
@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 import blackHoleLogo from '../assets/black_hole.jpg';
 
 // Fix heroicons import with correct component names
-import { ArrowLeftIcon, SunIcon, MoonIcon } from '@heroicons/react/solid';
+import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon } from '@heroicons/react/solid';
 
 function VariableView() {
   const [selectedCollection, setSelectedCollection] = useState('apex_2006_2023');
@@ -24,6 +24,10 @@ function VariableView() {
   // New state variables for statistics
   const [showStatistics, setShowStatistics] = useState(false);
   const [showCorrelation, setShowCorrelation] = useState(false);
+
+  // Refs for accessing chart instances
+  const mainChartRef = useRef(null);
+  const maChartRef = useRef(null);
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -433,6 +437,23 @@ function VariableView() {
   const chartData = getChartData();
   const movingAverageChartData = getMovingAverageChartData();
 
+  // Function to export chart as PNG
+  const exportChartAsPNG = (chartRef, filename) => {
+    if (chartRef && chartRef.current) {
+      // Get the chart canvas element
+      const canvas = chartRef.current.canvas;
+
+      // Convert canvas to data URL
+      const image = canvas.toDataURL('image/png', 1.0);
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `${filename}-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = image;
+      link.click();
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {/* Header */}
@@ -626,103 +647,34 @@ function VariableView() {
           {selectedVariables.length > 0 ? (
             <>
               {/* Main Graph */}
-              <div className="bg-white dark:bg-gray-800 p-4 rounded shadow h-[500px] transition-colors duration-300">
-                {loading && !showOnlyMovingAverage ? (
-                  <div className="flex justify-center items-center h-full">
-                    <p>Loading...</p>
-                  </div>
-                ) : error && !showOnlyMovingAverage ? (
-                  <p className="text-center text-red-500">Error: {error.message}</p>
-                ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
-                  <Line
-                    data={chartData}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          position: 'top',
-                          labels: {
-                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                          },
-                        },
-                        title: {
-                          display: true,
-                          text:
-                            selectedVariables.length === 1
-                              ? variables.find((v) => v.value === selectedVariables[0]).label
-                              : 'Selected Variables Comparison',
-                          color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                        },
-                      },
-                      scales: selectedVariables.length > 1
-                        ? selectedVariables.reduce((acc, variable, index) => {
-                          acc[`y-axis-${index}`] = {
-                            type: 'linear',
-                            position: index % 2 === 0 ? 'left' : 'right',
-                            grid: {
-                              drawOnChartArea: index === 0,
-                              color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                            },
-                            title: {
-                              display: true,
-                              text: variables.find((v) => v.value === variable).label,
-                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                            },
-                            ticks: {
-                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                            },
-                          };
-                          return acc;
-                        }, {})
-                        : {
-                          y: {
-                            title: {
-                              display: true,
-                              text: variables.find((v) => v.value === selectedVariables[0]).label,
-                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                            },
-                            ticks: {
-                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
-                            },
-                            beginAtZero: false,
-                            grid: {
-                              color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
-                            },
-                          },
-                        },
-                    }}
-                  />
-                ) : (
-                  <p className="text-center text-gray-500 dark:text-gray-400">No data available for the selected date range.</p>
-                )}
-              </div>
-
-              {/* Toggle Moving Average Graph Button */}
-              {selectedVariables.length > 0 && (
-                <div className="flex justify-center mt-4">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded shadow transition-colors duration-300">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-lg font-semibold">
+                    {selectedVariables.length === 1
+                      ? variables.find((v) => v.value === selectedVariables[0]).label
+                      : 'Selected Variables Comparison'}
+                  </h2>
                   <button
-                    onClick={() => setShowOnlyMovingAverage(!showOnlyMovingAverage)}
-                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                    aria-label="Toggle Moving Average Graph"
+                    onClick={() => exportChartAsPNG(mainChartRef, 'weather-data-chart')}
+                    className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                    disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                    title="Export as PNG"
                   >
-                    {showOnlyMovingAverage ? '− Hide Moving Average Graph' : '+ Show Moving Average Graph'}
+                    <DownloadIcon className="h-4 w-4 mr-1" />
+                    Export PNG
                   </button>
                 </div>
-              )}
-
-              {/* Additional Moving Average Graph */}
-              {showOnlyMovingAverage && (
-                <div className="bg-white dark:bg-gray-800 p-4 rounded shadow h-[500px] mt-6 transition-colors duration-300">
-                  {loading ? (
+                <div className="h-[500px]">
+                  {loading && !showOnlyMovingAverage ? (
                     <div className="flex justify-center items-center h-full">
                       <p>Loading...</p>
                     </div>
-                  ) : error ? (
+                  ) : error && !showOnlyMovingAverage ? (
                     <p className="text-center text-red-500">Error: {error.message}</p>
                   ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
                     <Line
-                      data={movingAverageChartData}
+                      ref={mainChartRef}
+                      data={chartData}
                       options={{
                         responsive: true,
                         maintainAspectRatio: false,
@@ -735,7 +687,10 @@ function VariableView() {
                           },
                           title: {
                             display: true,
-                            text: 'Moving Average Lines',
+                            text:
+                              selectedVariables.length === 1
+                                ? variables.find((v) => v.value === selectedVariables[0]).label
+                                : 'Selected Variables Comparison',
                             color: isDarkMode ? '#f3f4f6' : '#1f2937',
                           },
                         },
@@ -780,6 +735,106 @@ function VariableView() {
                   ) : (
                     <p className="text-center text-gray-500 dark:text-gray-400">No data available for the selected date range.</p>
                   )}
+                </div>
+              </div>
+
+              {/* Toggle Moving Average Graph Button */}
+              {selectedVariables.length > 0 && (
+                <div className="flex justify-center mt-4">
+                  <button
+                    onClick={() => setShowOnlyMovingAverage(!showOnlyMovingAverage)}
+                    className="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-700 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                    aria-label="Toggle Moving Average Graph"
+                  >
+                    {showOnlyMovingAverage ? '− Hide Moving Average Graph' : '+ Show Moving Average Graph'}
+                  </button>
+                </div>
+              )}
+
+              {/* Additional Moving Average Graph */}
+              {showOnlyMovingAverage && (
+                <div className="bg-white dark:bg-gray-800 p-4 rounded shadow mt-6 transition-colors duration-300">
+                  <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-lg font-semibold">Moving Average Lines</h2>
+                    <button
+                      onClick={() => exportChartAsPNG(maChartRef, 'moving-average-chart')}
+                      className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                      disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                      title="Export as PNG"
+                    >
+                      <DownloadIcon className="h-4 w-4 mr-1" />
+                      Export PNG
+                    </button>
+                  </div>
+                  <div className="h-[500px]">
+                    {loading ? (
+                      <div className="flex justify-center items-center h-full">
+                        <p>Loading...</p>
+                      </div>
+                    ) : error ? (
+                      <p className="text-center text-red-500">Error: {error.message}</p>
+                    ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
+                      <Line
+                        ref={maChartRef}
+                        data={movingAverageChartData}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'top',
+                              labels: {
+                                color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                              },
+                            },
+                            title: {
+                              display: true,
+                              text: 'Moving Average Lines',
+                              color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                            },
+                          },
+                          scales: selectedVariables.length > 1
+                            ? selectedVariables.reduce((acc, variable, index) => {
+                              acc[`y-axis-${index}`] = {
+                                type: 'linear',
+                                position: index % 2 === 0 ? 'left' : 'right',
+                                grid: {
+                                  drawOnChartArea: index === 0,
+                                  color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                },
+                                title: {
+                                  display: true,
+                                  text: variables.find((v) => v.value === variable).label,
+                                  color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                                },
+                                ticks: {
+                                  color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                                },
+                              };
+                              return acc;
+                            }, {})
+                            : {
+                              y: {
+                                title: {
+                                  display: true,
+                                  text: variables.find((v) => v.value === selectedVariables[0]).label,
+                                  color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                                },
+                                ticks: {
+                                  color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                                },
+                                beginAtZero: false,
+                                grid: {
+                                  color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                                },
+                              },
+                            },
+                        }}
+                      />
+                    ) : (
+                      <p className="text-center text-gray-500 dark:text-gray-400">No data available for the selected date range.</p>
+                    )}
+                  </div>
                 </div>
               )}
 

@@ -18,18 +18,50 @@ import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon } from '@he
 Chart.register(Zoom);
 
 function VariableView() {
-  const [selectedCollection, setSelectedCollection] = useState('apex_2006_2023');
-  const [selectedVariables, setSelectedVariables] = useState([]);
-  const [showMovingAverage, setShowMovingAverage] = useState(false);
-  const [movingAverageWindow, setMovingAverageWindow] = useState(5);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Initialize state from localStorage or use defaults
+  const [selectedCollection, setSelectedCollection] = useState(() => {
+    return localStorage.getItem('variableView_selectedCollection') || 'apex_2006_2023';
+  });
+  const [selectedVariables, setSelectedVariables] = useState(() => {
+    const saved = localStorage.getItem('variableView_selectedVariables');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showMovingAverage, setShowMovingAverage] = useState(() => {
+    return localStorage.getItem('variableView_showMovingAverage') === 'true';
+  });
+  const [movingAverageWindow, setMovingAverageWindow] = useState(() => {
+    const saved = localStorage.getItem('variableView_movingAverageWindow');
+    return saved ? parseInt(saved, 10) : 5;
+  });
+  const [startDate, setStartDate] = useState(() => {
+    return localStorage.getItem('variableView_startDate') || '';
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return localStorage.getItem('variableView_endDate') || '';
+  });
   const [dateError, setDateError] = useState({ startDate: false, endDate: false });
-  const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(false);
+  const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(() => {
+    return localStorage.getItem('variableView_showOnlyMovingAverage') === 'true';
+  });
 
   // New state variables for statistics
-  const [showStatistics, setShowStatistics] = useState(false);
-  const [showCorrelation, setShowCorrelation] = useState(false);
+  const [showStatistics, setShowStatistics] = useState(() => {
+    return localStorage.getItem('variableView_showStatistics') === 'true';
+  });
+  const [showCorrelation, setShowCorrelation] = useState(() => {
+    return localStorage.getItem('variableView_showCorrelation') === 'true';
+  });
+
+  // Save cached data in state
+  const [cachedData, setCachedData] = useState(() => {
+    const saved = localStorage.getItem('variableView_cachedData');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      console.error('Failed to parse cached data', e);
+      return null;
+    }
+  });
 
   // Refs for accessing chart instances
   const mainChartRef = useRef(null);
@@ -40,6 +72,43 @@ function VariableView() {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme === 'dark' ? true : false;
   });
+
+  // Update localStorage when state changes
+  useEffect(() => {
+    localStorage.setItem('variableView_selectedCollection', selectedCollection);
+  }, [selectedCollection]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_selectedVariables', JSON.stringify(selectedVariables));
+  }, [selectedVariables]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_showMovingAverage', showMovingAverage);
+  }, [showMovingAverage]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_movingAverageWindow', movingAverageWindow);
+  }, [movingAverageWindow]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_startDate', startDate);
+  }, [startDate]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_endDate', endDate);
+  }, [endDate]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_showOnlyMovingAverage', showOnlyMovingAverage);
+  }, [showOnlyMovingAverage]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_showStatistics', showStatistics);
+  }, [showStatistics]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_showCorrelation', showCorrelation);
+  }, [showCorrelation]);
 
   // Update the HTML element's class based on dark mode state
   useEffect(() => {
@@ -67,7 +136,21 @@ function VariableView() {
   // Initialize useLazyQuery
   const [getWeatherData, { loading, error, data }] = useLazyQuery(GET_WEATHER_DATA, {
     fetchPolicy: 'network-only', // Always fetch from server
+    onCompleted: (newData) => {
+      if (newData && newData.getWeatherData) {
+        // Cache the response data in localStorage
+        try {
+          localStorage.setItem('variableView_cachedData', JSON.stringify(newData));
+          setCachedData(newData);
+        } catch (e) {
+          console.error('Failed to cache data in localStorage', e);
+        }
+      }
+    }
   });
+
+  // Use either fresh data or cached data
+  const effectiveData = data || cachedData;
 
   useEffect(() => {
     // Validate dates but do not refetch automatically
@@ -76,6 +159,21 @@ function VariableView() {
 
     setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
   }, [startDate, endDate, isValidDateFormat]);
+
+  // Re-fetch data on page load if we have valid parameters
+  useEffect(() => {
+    if (startDate && endDate && selectedCollection && 
+        isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
+      getWeatherData({
+        variables: {
+          collection: selectedCollection,
+          limit: 10000,
+          startDate,
+          endDate,
+        }
+      });
+    }
+  }, []); // Empty dependency array means this runs once on mount
 
   const handleVariableChange = (event) => {
     const { value, checked } = event.target;
@@ -149,9 +247,9 @@ function VariableView() {
   };
 
   const getChartData = () => {
-    if (!data || !data.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
+    if (!effectiveData || !effectiveData.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
 
-    const cleanedData = data.getWeatherData.filter((entry) => entry.wdatetime);
+    const cleanedData = effectiveData.getWeatherData.filter((entry) => entry.wdatetime);
 
     if (cleanedData.length === 0) {
       return { labels: [], datasets: [] };
@@ -209,9 +307,9 @@ function VariableView() {
   };
 
   const getMovingAverageChartData = () => {
-    if (!data || !data.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
+    if (!effectiveData || !effectiveData.getWeatherData || selectedVariables.length === 0) return { labels: [], datasets: [] };
 
-    const cleanedData = data.getWeatherData.filter((entry) => entry.wdatetime);
+    const cleanedData = effectiveData.getWeatherData.filter((entry) => entry.wdatetime);
 
     if (cleanedData.length === 0) {
       return { labels: [], datasets: [] };
@@ -572,7 +670,7 @@ function VariableView() {
                     ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
                     : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
                 }`}
-                disabled={!data || !data.getWeatherData || selectedVariables.length === 0}
+                disabled={!effectiveData || !effectiveData.getWeatherData || selectedVariables.length === 0}
               >
                 {showStatistics ? 'Hide Statistics' : 'Show Statistics'}
               </button>
@@ -584,7 +682,7 @@ function VariableView() {
                     ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
                     : 'bg-green-500 text-white hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700'
                 }`}
-                disabled={!data || !data.getWeatherData || selectedVariables.length < 2}
+                disabled={!effectiveData || !effectiveData.getWeatherData || selectedVariables.length < 2}
               >
                 {showCorrelation ? 'Hide Correlation' : 'Show Correlation'}
               </button>
@@ -668,7 +766,7 @@ function VariableView() {
                     <button
                       onClick={() => resetZoom(mainChartRef)}
                       className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                      disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                      disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                       title="Reset Zoom"
                     >
                       <RefreshIcon className="h-4 w-4 mr-1" />
@@ -677,7 +775,7 @@ function VariableView() {
                     <button
                       onClick={() => exportChartAsPNG(mainChartRef, 'weather-data-chart')}
                       className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                      disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                      disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                       title="Export as PNG"
                     >
                       <DownloadIcon className="h-4 w-4 mr-1" />
@@ -692,7 +790,7 @@ function VariableView() {
                     </div>
                   ) : error && !showOnlyMovingAverage ? (
                     <p className="text-center text-red-500">Error: {error.message}</p>
-                  ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
+                  ) : effectiveData && effectiveData.getWeatherData && effectiveData.getWeatherData.length > 0 ? (
                     <Line
                       ref={mainChartRef}
                       data={chartData}
@@ -806,7 +904,7 @@ function VariableView() {
                       <button
                         onClick={() => resetZoom(maChartRef)}
                         className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                        disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                        disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                         title="Reset Zoom"
                       >
                         <RefreshIcon className="h-4 w-4 mr-1" />
@@ -815,7 +913,7 @@ function VariableView() {
                       <button
                         onClick={() => exportChartAsPNG(maChartRef, 'moving-average-chart')}
                         className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                        disabled={!data || !data.getWeatherData || data.getWeatherData.length === 0}
+                        disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                         title="Export as PNG"
                       >
                         <DownloadIcon className="h-4 w-4 mr-1" />
@@ -830,7 +928,7 @@ function VariableView() {
                       </div>
                     ) : error ? (
                       <p className="text-center text-red-500">Error: {error.message}</p>
-                    ) : data && data.getWeatherData && data.getWeatherData.length > 0 ? (
+                    ) : effectiveData && effectiveData.getWeatherData && effectiveData.getWeatherData.length > 0 ? (
                       <Line
                         ref={maChartRef}
                         data={movingAverageChartData}
@@ -921,18 +1019,18 @@ function VariableView() {
               )}
 
               {/* Statistics Display */}
-              {showStatistics && data && data.getWeatherData && (
+              {showStatistics && effectiveData && effectiveData.getWeatherData && (
                 <StatisticsDisplay
-                  data={data.getWeatherData}
+                  data={effectiveData.getWeatherData}
                   selectedVariables={selectedVariables}
                   variables={variables}
                 />
               )}
 
               {/* Correlation Matrix */}
-              {showCorrelation && data && data.getWeatherData && (
+              {showCorrelation && effectiveData && effectiveData.getWeatherData && (
                 <CorrelationMatrix
-                  data={data.getWeatherData}
+                  data={effectiveData.getWeatherData}
                   selectedVariables={selectedVariables}
                   variables={variables}
                 />

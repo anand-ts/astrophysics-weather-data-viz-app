@@ -18,17 +18,42 @@ import { ArrowLeftIcon, SunIcon, MoonIcon, RefreshIcon } from '@heroicons/react/
 Chart.register(Zoom);
 
 function TelescopeView() {
-  const [selectedVariable, setSelectedVariable] = useState('temperature_k');
-  const [selectedTelescopes, setSelectedTelescopes] = useState([]);
-  const [showMovingAverage, setShowMovingAverage] = useState(false);
-  const [movingAverageWindow, setMovingAverageWindow] = useState(5);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  // Initialize state from localStorage or use defaults
+  const [selectedVariable, setSelectedVariable] = useState(() => {
+    return localStorage.getItem('telescopeView_selectedVariable') || 'temperature_k';
+  });
+  const [selectedTelescopes, setSelectedTelescopes] = useState(() => {
+    const saved = localStorage.getItem('telescopeView_selectedTelescopes');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [showMovingAverage, setShowMovingAverage] = useState(() => {
+    return localStorage.getItem('telescopeView_showMovingAverage') === 'true';
+  });
+  const [movingAverageWindow, setMovingAverageWindow] = useState(() => {
+    const saved = localStorage.getItem('telescopeView_movingAverageWindow');
+    return saved ? parseInt(saved, 10) : 5;
+  });
+  const [startDate, setStartDate] = useState(() => {
+    return localStorage.getItem('telescopeView_startDate') || '';
+  });
+  const [endDate, setEndDate] = useState(() => {
+    return localStorage.getItem('telescopeView_endDate') || '';
+  });
   const [dateError, setDateError] = useState({ startDate: false, endDate: false });
-  const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(false);
+  const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(() => {
+    return localStorage.getItem('telescopeView_showOnlyMovingAverage') === 'true';
+  });
   
   // New state to store all telescope data
-  const [telescopeData, setTelescopeData] = useState({});
+  const [telescopeData, setTelescopeData] = useState(() => {
+    const saved = localStorage.getItem('telescopeView_telescopeData');
+    try {
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      console.error('Failed to parse cached telescope data', e);
+      return {};
+    }
+  });
   const [isLoading, setIsLoading] = useState(false);
 
   // Dark mode state
@@ -36,6 +61,43 @@ function TelescopeView() {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme === 'dark' ? true : false;
   });
+
+  // Update localStorage when state changes
+  useEffect(() => {
+    localStorage.setItem('telescopeView_selectedVariable', selectedVariable);
+  }, [selectedVariable]);
+
+  useEffect(() => {
+    localStorage.setItem('telescopeView_selectedTelescopes', JSON.stringify(selectedTelescopes));
+  }, [selectedTelescopes]);
+
+  useEffect(() => {
+    localStorage.setItem('telescopeView_showMovingAverage', showMovingAverage);
+  }, [showMovingAverage]);
+
+  useEffect(() => {
+    localStorage.setItem('telescopeView_movingAverageWindow', movingAverageWindow);
+  }, [movingAverageWindow]);
+
+  useEffect(() => {
+    localStorage.setItem('telescopeView_startDate', startDate);
+  }, [startDate]);
+
+  useEffect(() => {
+    localStorage.setItem('telescopeView_endDate', endDate);
+  }, [endDate]);
+
+  useEffect(() => {
+    localStorage.setItem('telescopeView_showOnlyMovingAverage', showOnlyMovingAverage);
+  }, [showOnlyMovingAverage]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('telescopeView_telescopeData', JSON.stringify(telescopeData));
+    } catch (e) {
+      console.error('Failed to save telescope data to localStorage', e);
+    }
+  }, [telescopeData]);
 
   // Update the HTML element's class based on dark mode state
   useEffect(() => {
@@ -71,6 +133,17 @@ function TelescopeView() {
 
     setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
   }, [startDate, endDate, isValidDateFormat]);
+
+  // Re-fetch data on page load if we have valid parameters
+  useEffect(() => {
+    if (startDate && endDate && 
+        isValidDateFormat(startDate) && isValidDateFormat(endDate) && 
+        selectedTelescopes.length > 0 &&
+        Object.keys(telescopeData).length === 0) {
+      // Only fetch if we don't have data already
+      fetchTelescopeData();
+    }
+  }, []); // Empty dependency array means this runs once on mount
 
   const handleTelescopeChange = (event) => {
     const { value, checked } = event.target;

@@ -7,8 +7,6 @@
 
 # Using Local Data Files with Your Weather Data Application
 
-Your Docker Compose setup is already configured to use local data files. Here's how to set it up:
-
 ## 0. Download the data from Dropbox
 [Link to the data](https://www.dropbox.com/scl/fo/2l79uaowcjhavr4hn73fp/ABHqy4L6aoGiO6_ZT_WPw3c?rlkey=dtm9rs6xpsmioo2qz27q9ui9u&st=3zg395x3&dl=0)
 
@@ -48,12 +46,6 @@ Your Docker application is now ready to use the imported data:
 # If not already running
 docker-compose up
 ```
-
-## Benefits of This Approach
-
-- **Simplicity**: No need for external services or symbolic links
-- **Works Offline**: No internet connection required
-- **Speed**: Local file access is fastest
 
 The current Docker Compose setup already mounts your local data directory to the containers via these volume configurations:
 

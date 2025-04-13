@@ -2,6 +2,9 @@
 
 Your Docker Compose setup is already configured to use local data files. Here's how to set it up:
 
+## 0. Download the data from Dropbox
+[Link to the data](https://www.dropbox.com/scl/fo/2l79uaowcjhavr4hn73fp/ABHqy4L6aoGiO6_ZT_WPw3c?rlkey=dtm9rs6xpsmioo2qz27q9ui9u&st=3zg395x3&dl=0)
+
 ## 1. Organize Your Local Data
 
 1. Make sure you have a `data` directory in your project:

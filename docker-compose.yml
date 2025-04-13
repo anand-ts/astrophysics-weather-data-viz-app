@@ -5,6 +5,7 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+      - ./data:/app/data  # Add this line to map your data directory
     networks:
       - app-network
 
@@ -23,7 +24,7 @@ services:
     volumes:
       - ./backend:/app/backend
       - /app/backend/node_modules
-      - ./data:/app/data
+      - ./data:/data
 
   frontend:
     build:
@@ -38,7 +39,7 @@ services:
     volumes:
       - ./frontend:/app/frontend
       - /app/frontend/node_modules
-      - ./data:/app/data
+      - ./data:/data
 
 networks:
   app-network:

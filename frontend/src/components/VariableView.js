@@ -173,7 +173,7 @@ function VariableView() {
         }
       });
     }
-  }, []); // Empty dependency array means this runs once on mount
+  }, ); 
 
   const handleVariableChange = (event) => {
     const { value, checked } = event.target;

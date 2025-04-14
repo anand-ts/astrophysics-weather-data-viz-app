@@ -314,69 +314,49 @@ function VariableView() {
         anomalies = detectAnomalies(processedValues, anomalyThreshold);
       }
 
-      // Use the same color for both the variable line and its anomalies
-      const variableColor = getColor(index);
+      // Get variable color
+      const baseColor = getColor(index);
 
-      // Create the primary dataset
+      // Create dataset with enhanced point styling for anomalies
       const dataset = {
         label: variables.find((v) => v.value === variable).label,
         data: processedValues,
         fill: false,
-        backgroundColor: variableColor,
-        borderColor: variableColor,
+        backgroundColor: baseColor,
+        borderColor: baseColor,
         borderWidth: 1,
         pointRadius: (ctx) => {
           // Make anomalies have larger points
-          if (anomalyDetection && anomalies[ctx.dataIndex]) return 5;
+          if (anomalyDetection && anomalies[ctx.dataIndex]) return 6;
           return 1;
         },
         pointBackgroundColor: (ctx) => {
-          // Use the same color for anomaly points but potentially adjust opacity
-          if (anomalyDetection && anomalies[ctx.dataIndex]) {
-            // Return the same color with full opacity
-            return variableColor;
-          }
-          return variableColor;
+          return baseColor;
         },
         pointBorderColor: (ctx) => {
           // Add black border to anomaly points for better visibility
           if (anomalyDetection && anomalies[ctx.dataIndex]) return 'black';
-          return variableColor;
+          return baseColor;
         },
         pointBorderWidth: (ctx) => {
           // Thicker border for anomaly points
           if (anomalyDetection && anomalies[ctx.dataIndex]) return 2;
           return 1;
         },
+        pointStyle: (ctx) => {
+          // Use triangles for anomalies
+          if (anomalyDetection && anomalies[ctx.dataIndex]) return 'triangle';
+          return 'circle';
+        },
         pointHoverRadius: 8,
         tension: 0.1,
-        spanGaps: interpolationMethod === 'none', // Only use spanGaps if no interpolation
+        spanGaps: interpolationMethod === 'none',
         yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
       };
 
       chartData.datasets.push(dataset);
 
-      // If anomaly detection is enabled, add a separate dataset for anomalies
-      if (anomalyDetection) {
-        const anomalyPoints = values.map((val, i) => anomalies[i] ? val : null);
-
-        const anomalyDataset = {
-          label: `${variables.find((v) => v.value === variable).label} Anomalies`,
-          data: anomalyPoints,
-          backgroundColor: variableColor, // Use the same color as the variable
-          borderColor: 'black', // Black border to make anomalies stand out
-          borderWidth: 2,
-          pointRadius: 6,
-          pointStyle: 'triangle', // Use distinct shape for anomalies
-          pointHoverRadius: 10,
-          showLine: false,
-          yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
-        };
-
-        chartData.datasets.push(anomalyDataset);
-      }
-
-      // Moving Average Dataset (if enabled)
+      // Moving Average Dataset
       if (showMovingAverage && movingAverageWindow) {
         const movingAverage = calculateMovingAverage(cleanedData, movingAverageWindow)[variable];
         chartData.datasets.push({
@@ -619,25 +599,39 @@ function VariableView() {
 
     return (
       <div className="mt-4 bg-white dark:bg-gray-800 p-4 rounded shadow transition-colors duration-300">
-        <h3 className="text-lg font-semibold mb-2">Anomaly Color Legend</h3>
-        <div className="flex flex-wrap gap-2">
-          {selectedVariables.map((variable, index) => (
-            <div key={variable} className="flex items-center">
-              <div 
-                style={{ 
-                  backgroundColor: getAnomalyColor(index),
-                  width: '16px', 
-                  height: '16px', 
-                  borderRadius: '50%',
-                  border: '1px solid black',
-                  marginRight: '4px' 
-                }} 
-              />
-              <span className="text-sm">
-                {variables.find(v => v.value === variable).label} Anomalies
-              </span>
-            </div>
-          ))}
+        <h3 className="text-lg font-semibold mb-2">Anomaly Legend</h3>
+        <div className="flex flex-wrap gap-4">
+          {selectedVariables.map((variable, index) => {
+            const variableColor = getColor(index);
+            const variableLabel = variables.find(v => v.value === variable).label;
+
+            return (
+              <div key={variable} className="flex items-center">
+                <div
+                  className="flex items-center justify-center mr-2"
+                  style={{
+                    width: '20px',
+                    height: '20px'
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '0',
+                      height: '0',
+                      borderLeft: '6px solid transparent',
+                      borderRight: '6px solid transparent',
+                      borderBottom: `12px solid ${variableColor}`,
+                      borderTop: '0px',
+                      outline: '1px solid black'
+                    }}
+                  />
+                </div>
+                <span className="text-sm">
+                  {variableLabel} Anomalies
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     );

@@ -15,7 +15,7 @@ import blackHoleLogo from '../assets/black_hole.jpg';
 import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon } from '@heroicons/react/solid';
 
 // Add these imports at the top
-import { linearInterpolation, detectAnomalies, getAnomalyColor } from '../utils/dataProcessing';
+import { linearInterpolation, detectAnomalies } from '../utils/dataProcessing';
 
 // Register Zoom Plugin
 Chart.register(Zoom);

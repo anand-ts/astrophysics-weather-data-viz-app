@@ -1,24 +1,10 @@
-# Weather Data Visualization
-
-## New Features
-
-### Data Interpolation Options
-You can now choose how missing data is handled:
-- **Show gaps**: Leaves gaps in the line chart where data is missing
-- **Linear interpolation**: Draws straight lines between available data points
-
-### Anomaly Detection
-The application can now automatically detect and highlight unusual data points:
-- Enable/disable anomaly detection
-- Adjust the sensitivity threshold (Z-score)
-- Anomalies are highlighted in red on the chart
-
-# Astrophysics Weather Data Visualization Web App
+# EHT-WeatherViz: Event Horizon Telescope Meteorological Analytics Platform
 
 ![Light Theme Screenshot](frontend/src/assets/weather-viz-light.png)
 ![Dark Theme Screenshot](frontend/src/assets/weather-viz-dark.png)
 
- A web application for visualizing weather data from the Event Horizon Telescope (EHT), developed for the Black Hole Astrophysics Group at Georgia Tech's School of Physics.
+## Project Description:
+EHT-WeatherViz is a comprehensive web-based platform for analyzing, visualizing, and correlating meteorological data across the global network of Event Horizon Telescope observation sites. This interactive dashboard enables astronomers and researchers to explore critical atmospheric parameters affecting telescope performance, including temperature, pressure, humidity, wind conditions, and precipitable water vapor (PWV). With advanced features like time-series analysis, moving averages, anomaly detection, and statistical correlation, the platform supports critical decision-making for observation planning and helps identify optimal conditions for black hole imaging campaigns. Developed by the Black Hole Astrophysics Group at Georgia Tech, this tool integrates weather data from ALMA, APEX, GLT, JCMT, LMT, SMA, and SMT telescopes, providing unified meteorological intelligence for the international EHT collaboration.
 
 # Using Local Data Files with Your Weather Data Application
 

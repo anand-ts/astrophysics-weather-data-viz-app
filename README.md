@@ -1,3 +1,18 @@
+# Weather Data Visualization
+
+## New Features
+
+### Data Interpolation Options
+You can now choose how missing data is handled:
+- **Show gaps**: Leaves gaps in the line chart where data is missing
+- **Linear interpolation**: Draws straight lines between available data points
+
+### Anomaly Detection
+The application can now automatically detect and highlight unusual data points:
+- Enable/disable anomaly detection
+- Adjust the sensitivity threshold (Z-score)
+- Anomalies are highlighted in red on the chart
+
 # Astrophysics Weather Data Visualization Web App
 
 ![Light Theme Screenshot](frontend/src/assets/weather-viz-light.png)

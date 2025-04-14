@@ -14,6 +14,9 @@ import blackHoleLogo from '../assets/black_hole.jpg';
 // Fix heroicons import with correct component names
 import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon } from '@heroicons/react/solid';
 
+// Add these imports at the top
+import { linearInterpolation, detectAnomalies, getAnomalyColor } from '../utils/dataProcessing';
+
 // Register Zoom Plugin
 Chart.register(Zoom);
 
@@ -50,6 +53,20 @@ function VariableView() {
   });
   const [showCorrelation, setShowCorrelation] = useState(() => {
     return localStorage.getItem('variableView_showCorrelation') === 'true';
+  });
+
+  // Add new state variables for interpolation and anomaly detection
+  const [interpolationMethod, setInterpolationMethod] = useState(() => {
+    return localStorage.getItem('variableView_interpolationMethod') || 'none';
+  });
+
+  const [anomalyDetection, setAnomalyDetection] = useState(() => {
+    return localStorage.getItem('variableView_anomalyDetection') === 'true';
+  });
+
+  const [anomalyThreshold, setAnomalyThreshold] = useState(() => {
+    const saved = localStorage.getItem('variableView_anomalyThreshold');
+    return saved ? parseFloat(saved) : 3.0;
   });
 
   // Save cached data in state
@@ -110,6 +127,18 @@ function VariableView() {
     localStorage.setItem('variableView_showCorrelation', showCorrelation);
   }, [showCorrelation]);
 
+  useEffect(() => {
+    localStorage.setItem('variableView_interpolationMethod', interpolationMethod);
+  }, [interpolationMethod]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_anomalyDetection', anomalyDetection);
+  }, [anomalyDetection]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_anomalyThreshold', anomalyThreshold);
+  }, [anomalyThreshold]);
+
   // Update the HTML element's class based on dark mode state
   useEffect(() => {
     const root = window.document.documentElement;
@@ -165,7 +194,7 @@ function VariableView() {
     // Only run if all required parameters are valid
     const isStartDateValid = startDate && isValidDateFormat(startDate);
     const isEndDateValid = endDate && isValidDateFormat(endDate);
-    
+
     if (isStartDateValid && isEndDateValid && cachedData === null) {
       getWeatherData({
         variables: {
@@ -268,26 +297,86 @@ function VariableView() {
     };
 
     selectedVariables.forEach((variable, index) => {
-      const values = cleanedData.map(
+      // Extract raw values
+      let values = cleanedData.map(
         (entry) => (entry[variable] !== undefined ? entry[variable] : null)
       );
 
-      // Variable Dataset
-      chartData.datasets.push({
+      // Apply interpolation if selected
+      let processedValues = values;
+      if (interpolationMethod === 'linear') {
+        processedValues = linearInterpolation(values);
+      }
+
+      // Detect anomalies if enabled
+      let anomalies = [];
+      if (anomalyDetection) {
+        anomalies = detectAnomalies(processedValues, anomalyThreshold);
+      }
+
+      // Use the same color for both the variable line and its anomalies
+      const variableColor = getColor(index);
+
+      // Create the primary dataset
+      const dataset = {
         label: variables.find((v) => v.value === variable).label,
-        data: values,
+        data: processedValues,
         fill: false,
-        backgroundColor: getColor(index),
-        borderColor: getColor(index),
+        backgroundColor: variableColor,
+        borderColor: variableColor,
         borderWidth: 1,
-        pointRadius: 1,
+        pointRadius: (ctx) => {
+          // Make anomalies have larger points
+          if (anomalyDetection && anomalies[ctx.dataIndex]) return 5;
+          return 1;
+        },
+        pointBackgroundColor: (ctx) => {
+          // Use the same color for anomaly points but potentially adjust opacity
+          if (anomalyDetection && anomalies[ctx.dataIndex]) {
+            // Return the same color with full opacity
+            return variableColor;
+          }
+          return variableColor;
+        },
+        pointBorderColor: (ctx) => {
+          // Add black border to anomaly points for better visibility
+          if (anomalyDetection && anomalies[ctx.dataIndex]) return 'black';
+          return variableColor;
+        },
+        pointBorderWidth: (ctx) => {
+          // Thicker border for anomaly points
+          if (anomalyDetection && anomalies[ctx.dataIndex]) return 2;
+          return 1;
+        },
         pointHoverRadius: 8,
         tension: 0.1,
-        spanGaps: true,
+        spanGaps: interpolationMethod === 'none', // Only use spanGaps if no interpolation
         yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
-      });
+      };
 
-      // Moving Average Dataset
+      chartData.datasets.push(dataset);
+
+      // If anomaly detection is enabled, add a separate dataset for anomalies
+      if (anomalyDetection) {
+        const anomalyPoints = values.map((val, i) => anomalies[i] ? val : null);
+
+        const anomalyDataset = {
+          label: `${variables.find((v) => v.value === variable).label} Anomalies`,
+          data: anomalyPoints,
+          backgroundColor: variableColor, // Use the same color as the variable
+          borderColor: 'black', // Black border to make anomalies stand out
+          borderWidth: 2,
+          pointRadius: 6,
+          pointStyle: 'triangle', // Use distinct shape for anomalies
+          pointHoverRadius: 10,
+          showLine: false,
+          yAxisID: selectedVariables.length > 1 ? `y-axis-${index}` : 'y',
+        };
+
+        chartData.datasets.push(anomalyDataset);
+      }
+
+      // Moving Average Dataset (if enabled)
       if (showMovingAverage && movingAverageWindow) {
         const movingAverage = calculateMovingAverage(cleanedData, movingAverageWindow)[variable];
         chartData.datasets.push({
@@ -383,7 +472,7 @@ function VariableView() {
 
     const pairs = data.map(entry => [entry[var1], entry[var2]])
       .filter(pair => pair[0] !== undefined && pair[0] !== null && !isNaN(pair[0]) &&
-                      pair[1] !== undefined && pair[1] !== null && !isNaN(pair[1]));
+        pair[1] !== undefined && pair[1] !== null && !isNaN(pair[1]));
 
     if (pairs.length < 2) return 0;
 
@@ -520,6 +609,35 @@ function VariableView() {
               })}
             </tbody>
           </table>
+        </div>
+      </div>
+    );
+  };
+
+  const AnomalyColorLegend = () => {
+    if (!anomalyDetection || selectedVariables.length === 0) return null;
+
+    return (
+      <div className="mt-4 bg-white dark:bg-gray-800 p-4 rounded shadow transition-colors duration-300">
+        <h3 className="text-lg font-semibold mb-2">Anomaly Color Legend</h3>
+        <div className="flex flex-wrap gap-2">
+          {selectedVariables.map((variable, index) => (
+            <div key={variable} className="flex items-center">
+              <div 
+                style={{ 
+                  backgroundColor: getAnomalyColor(index),
+                  width: '16px', 
+                  height: '16px', 
+                  borderRadius: '50%',
+                  border: '1px solid black',
+                  marginRight: '4px' 
+                }} 
+              />
+              <span className="text-sm">
+                {variables.find(v => v.value === variable).label} Anomalies
+              </span>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -677,7 +795,7 @@ function VariableView() {
               >
                 {showStatistics ? 'Hide Statistics' : 'Show Statistics'}
               </button>
-              
+
               <button
                 onClick={() => setShowCorrelation(!showCorrelation)}
                 className={`px-4 py-2 rounded transition-colors duration-300 ${
@@ -689,6 +807,84 @@ function VariableView() {
               >
                 {showCorrelation ? 'Hide Correlation' : 'Show Correlation'}
               </button>
+            </div>
+          </div>
+
+          {/* Add Data Interpolation Controls */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-2">Data Interpolation</h3>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="interpolation-none"
+                  name="interpolation"
+                  value="none"
+                  checked={interpolationMethod === 'none'}
+                  onChange={() => setInterpolationMethod('none')}
+                  className="form-radio h-4 w-4 text-blue-600"
+                />
+                <label htmlFor="interpolation-none" className="text-gray-700 dark:text-gray-300">
+                  Show gaps
+                </label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="radio"
+                  id="interpolation-linear"
+                  name="interpolation"
+                  value="linear"
+                  checked={interpolationMethod === 'linear'}
+                  onChange={() => setInterpolationMethod('linear')}
+                  className="form-radio h-4 w-4 text-blue-600"
+                />
+                <label htmlFor="interpolation-linear" className="text-gray-700 dark:text-gray-300">
+                  Linear interpolation
+                </label>
+              </div>
+            </div>
+          </div>
+
+          {/* Add Anomaly Detection Controls */}
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold mb-2">Anomaly Detection</h3>
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="anomaly-detection"
+                  checked={anomalyDetection}
+                  onChange={() => setAnomalyDetection(!anomalyDetection)}
+                  className="form-checkbox h-5 w-5 text-blue-600"
+                />
+                <label htmlFor="anomaly-detection" className="text-gray-700 dark:text-gray-300">
+                  Highlight anomalies
+                </label>
+              </div>
+
+              {anomalyDetection && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Threshold (Z-score):
+                  </label>
+                  <input
+                    type="number"
+                    value={anomalyThreshold}
+                    onChange={(e) => {
+                      const value = parseFloat(e.target.value);
+                      if (!isNaN(value) && value > 0) {
+                        setAnomalyThreshold(value);
+                      }
+                    }}
+                    className="mt-1 block w-24 border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500"
+                    min="0.5"
+                    step="0.1"
+                  />
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Lower values detect more anomalies
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -884,6 +1080,9 @@ function VariableView() {
                   )}
                 </div>
               </div>
+
+              {/* Add Anomaly Color Legend after the chart */}
+              {anomalyDetection && <AnomalyColorLegend />}
 
               {/* Toggle Moving Average Graph Button */}
               {selectedVariables.length > 0 && (

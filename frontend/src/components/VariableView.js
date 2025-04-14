@@ -160,20 +160,23 @@ function VariableView() {
     setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
   }, [startDate, endDate, isValidDateFormat]);
 
-  // Re-fetch data on page load if we have valid parameters
+  // Re-fetch data when parameters change
   useEffect(() => {
-    if (startDate && endDate && selectedCollection && 
-        isValidDateFormat(startDate) && isValidDateFormat(endDate)) {
+    // Only run if all required parameters are valid
+    const isStartDateValid = startDate && isValidDateFormat(startDate);
+    const isEndDateValid = endDate && isValidDateFormat(endDate);
+    
+    if (isStartDateValid && isEndDateValid && cachedData === null) {
       getWeatherData({
         variables: {
           collection: selectedCollection,
           limit: 10000,
-          startDate,
+          startDate, // Add missing comma here
           endDate,
         }
       });
     }
-  }, ); 
+  }, [startDate, endDate, selectedCollection, getWeatherData, isValidDateFormat, cachedData]);
 
   const handleVariableChange = (event) => {
     const { value, checked } = event.target;

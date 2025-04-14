@@ -134,16 +134,50 @@ function TelescopeView() {
     setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
   }, [startDate, endDate, isValidDateFormat]);
 
+  // Wrap the fetchTelescopeData function in useCallback before the useEffect
+  const fetchTelescopeData = useCallback(async () => {
+    if (startDate && endDate && !dateError.startDate && !dateError.endDate && selectedTelescopes.length > 0) {
+      setIsLoading(true);
+      const newData = {};
+      
+      // Fetch data for each selected telescope
+      for (const telescope of selectedTelescopes) {
+        try {
+          const result = await getWeatherData({
+            variables: {
+              collection: telescope,
+              limit: 10000,
+              startDate: startDate,
+              endDate: endDate,
+            }
+          });
+          
+          if (result.data && result.data.getWeatherData) {
+            newData[telescope] = result.data.getWeatherData;
+          }
+        } catch (err) {
+          console.error(`Error fetching data for ${telescope}:`, err);
+        }
+      }
+      
+      setTelescopeData(newData);
+      setIsLoading(false);
+      setShowOnlyMovingAverage(false);
+    }
+  }, [selectedTelescopes, startDate, endDate, dateError, getWeatherData]);
+
   // Re-fetch data on page load if we have valid parameters
   useEffect(() => {
-    if (startDate && endDate && 
-        isValidDateFormat(startDate) && isValidDateFormat(endDate) && 
-        selectedTelescopes.length > 0 &&
-        Object.keys(telescopeData).length === 0) {
-      // Only fetch if we don't have data already
+    if (
+      startDate && 
+      endDate && 
+      isValidDateFormat(startDate) && 
+      isValidDateFormat(endDate) && 
+      selectedTelescopes.length > 0
+    ) {
       fetchTelescopeData();
     }
-  }, []); // Empty dependency array means this runs once on mount
+  }, [startDate, endDate, selectedTelescopes, fetchTelescopeData, isValidDateFormat]);
 
   const handleTelescopeChange = (event) => {
     const { value, checked } = event.target;
@@ -174,40 +208,6 @@ function TelescopeView() {
       setMovingAverageWindow(intValue);
     } else if (value === '') {
       setMovingAverageWindow('');
-    }
-  };
-
-  // New function to fetch data for all selected telescopes
-  const fetchTelescopeData = async () => {
-    if (startDate && endDate && !dateError.startDate && !dateError.endDate && selectedTelescopes.length > 0) {
-      setIsLoading(true);
-      const newData = {};
-      let hasError = false;
-      
-      // Fetch data for each selected telescope
-      for (const telescope of selectedTelescopes) {
-        try {
-          const result = await getWeatherData({
-            variables: {
-              collection: telescope,
-              limit: 10000,
-              startDate: startDate,
-              endDate: endDate,
-            }
-          });
-          
-          if (result.data && result.data.getWeatherData) {
-            newData[telescope] = result.data.getWeatherData;
-          }
-        } catch (err) {
-          console.error(`Error fetching data for ${telescope}:`, err);
-          hasError = true;
-        }
-      }
-      
-      setTelescopeData(newData);
-      setIsLoading(false);
-      setShowOnlyMovingAverage(false);
     }
   };
 

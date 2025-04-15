@@ -11,8 +11,8 @@ import { Link } from 'react-router-dom';
 // Import the logo image
 import blackHoleLogo from '../assets/black_hole.jpg';
 
-// Fix heroicons import and add ArrowsExpandIcon
-import { ArrowLeftIcon, SunIcon, MoonIcon, RefreshIcon, DownloadIcon, ArrowsExpandIcon } from '@heroicons/react/solid';
+// Fix heroicons import and add new icons
+import { ArrowLeftIcon, SunIcon, MoonIcon, RefreshIcon, DownloadIcon, ArrowsExpandIcon, XIcon } from '@heroicons/react/solid';
 
 // Register Zoom Plugin
 Chart.register(Zoom);
@@ -62,8 +62,8 @@ function TelescopeView() {
     return savedTheme === 'dark' ? true : false;
   });
 
-  // Add state to track fullscreen status
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Add state for expanded view (different from fullscreen)
+  const [isExpanded, setIsExpanded] = useState(false);
 
   // Update localStorage when state changes
   useEffect(() => {
@@ -368,7 +368,7 @@ function TelescopeView() {
   const chartRef = useRef(null);
   const chartContainerRef = useRef(null);
   
-  // Add a function to toggle fullscreen
+  // Modify toggleFullScreen to remove the unused state updates
   const toggleFullScreen = () => {
     if (!chartContainerRef || !chartContainerRef.current) return;
     
@@ -381,7 +381,6 @@ function TelescopeView() {
       } else if (chartContainerRef.current.msRequestFullscreen) { /* IE11 */
         chartContainerRef.current.msRequestFullscreen();
       }
-      setIsFullscreen(true);
     } else {
       // Exit fullscreen
       if (document.exitFullscreen) {
@@ -391,28 +390,8 @@ function TelescopeView() {
       } else if (document.msExitFullscreen) { /* IE11 */
         document.msExitFullscreen();
       }
-      setIsFullscreen(false);
     }
   };
-
-  // Add event listener for fullscreen change
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    };
-  }, []);
 
   // Add a function to reset zoom
   const resetZoom = () => {
@@ -436,6 +415,11 @@ function TelescopeView() {
       link.href = image;
       link.click();
     }
+  };
+
+  // Add a function to toggle expanded view
+  const toggleExpandedView = () => {
+    setIsExpanded(!isExpanded);
   };
 
   return (
@@ -464,6 +448,111 @@ function TelescopeView() {
           )}
         </button>
       </header>
+
+      {/* Expanded View Chart Overlay */}
+      {isExpanded && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-[98vw] h-[95vh] flex flex-col p-3 relative">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold">
+                {variables.find(v => v.value === selectedVariable).label} Across Selected Telescopes
+              </h2>
+              <div className="flex space-x-2">
+                <button
+                  onClick={resetZoom}
+                  className="flex items-center justify-center p-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
+                  title="Reset Zoom"
+                  aria-label="Reset Zoom"
+                >
+                  <RefreshIcon className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={toggleExpandedView}
+                  className="flex items-center justify-center p-2 bg-red-500 text-white rounded-md hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-300 w-8 h-8"
+                  title="Close Expanded View"
+                  aria-label="Close Expanded View"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-grow">
+              <Line
+                ref={chartRef}
+                data={chartData}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: {
+                      position: 'top',
+                      labels: {
+                        color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                      },
+                    },
+                    title: {
+                      display: true,
+                      text: `${variables.find(v => v.value === selectedVariable).label} Across Selected Telescopes`,
+                      color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                    },
+                    zoom: {
+                      pan: {
+                        enabled: true,
+                        mode: 'x',
+                        modifierKey: 'shift',
+                      },
+                      zoom: {
+                        wheel: {
+                          enabled: true,
+                          speed: 0.1,
+                          sensitivity: 0.1,
+                        },
+                        pinch: {
+                          enabled: true,
+                        },
+                        drag: {
+                          enabled: true,
+                          backgroundColor: isDarkMode ? 'rgba(128,128,128,0.3)' : 'rgba(225,225,225,0.3)',
+                          borderColor: isDarkMode ? 'rgba(128,128,128)' : 'rgba(225,225,225)',
+                          borderWidth: 1,
+                          threshold: 10,
+                        },
+                        mode: 'x',
+                      },
+                    },
+                  },
+                  scales: {
+                    y: {
+                      title: {
+                        display: true,
+                        text: variables.find(v => v.value === selectedVariable).label,
+                        color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                      },
+                      ticks: {
+                        color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                      },
+                      beginAtZero: false,
+                      grid: {
+                        color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                      },
+                    },
+                    x: {
+                      ticks: {
+                        color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                        maxRotation: 45,
+                        minRotation: 45,
+                      },
+                      grid: {
+                        color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                      },
+                    }
+                  }
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Layout */}
       <div className="flex flex-col md:flex-row flex-1">
@@ -602,6 +691,15 @@ function TelescopeView() {
                       <RefreshIcon className="h-4 w-4" />
                     </button>
                     <button
+                      onClick={toggleExpandedView}
+                      className="flex items-center justify-center p-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-300 w-8 h-8"
+                      disabled={Object.keys(telescopeData).length === 0}
+                      title="Expand View"
+                      aria-label="Expand View"
+                    >
+                      <ArrowsExpandIcon className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={toggleFullScreen}
                       className="flex items-center justify-center p-2 bg-green-500 text-white rounded-md hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 w-8 h-8"
                       disabled={Object.keys(telescopeData).length === 0}
@@ -621,17 +719,7 @@ function TelescopeView() {
                     </button>
                   </div>
                 </div>
-                <div className="h-[500px] relative" ref={chartContainerRef}>
-                  {isFullscreen && document.fullscreenElement === chartContainerRef.current && (
-                    <button
-                      onClick={resetZoom}
-                      className="absolute top-4 left-4 flex items-center justify-center p-2 bg-gray-800 bg-opacity-90 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-10 h-10 z-50 shadow-lg"
-                      title="Reset Zoom"
-                      aria-label="Reset Zoom"
-                    >
-                      <RefreshIcon className="h-6 w-6" />
-                    </button>
-                  )}
+                <div className="h-[500px]" ref={chartContainerRef}>
                   {isLoading ? (
                     <div className="flex justify-center items-center h-full">
                       <p>Loading...</p>
@@ -657,7 +745,6 @@ function TelescopeView() {
                             text: `${variables.find(v => v.value === selectedVariable).label} Across Selected Telescopes`,
                             color: isDarkMode ? '#f3f4f6' : '#1f2937',
                           },
-                          // Add zoom plugin configuration
                           zoom: {
                             pan: {
                               enabled: true,
@@ -667,8 +754,8 @@ function TelescopeView() {
                             zoom: {
                               wheel: {
                                 enabled: true,
-                                speed: 0.1,  // Reduced from default
-                                sensitivity: 0.1,  // Lower sensitivity for smoother zoom
+                                speed: 0.1,
+                                sensitivity: 0.1,
                               },
                               pinch: {
                                 enabled: true,

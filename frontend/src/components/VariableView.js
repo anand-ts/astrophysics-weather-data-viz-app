@@ -12,7 +12,7 @@ import { Link } from 'react-router-dom';
 import blackHoleLogo from '../assets/black_hole.jpg';
 
 // Fix heroicons import with correct component names and add ExpandIcon
-import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon, ArrowsExpandIcon } from '@heroicons/react/solid';
+import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon, ArrowsExpandIcon, XIcon } from '@heroicons/react/solid';
 
 // Add these imports at the top
 import { linearInterpolation, detectAnomalies } from '../utils/dataProcessing';
@@ -92,8 +92,8 @@ function VariableView() {
     return savedTheme === 'dark' ? true : false;
   });
 
-  // Add state to track fullscreen status
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  // Add state for expanded view (different from fullscreen)
+  const [expandedChart, setExpandedChart] = useState(null); // null, 'main', or 'ma'
 
   // Update localStorage when state changes
   useEffect(() => {
@@ -155,28 +155,18 @@ function VariableView() {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
 
-  // Add event listener for fullscreen change
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
-      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
-    };
-  }, []);
-
   // Toggle dark mode
   const toggleDarkMode = () => {
     setIsDarkMode(!isDarkMode);
+  };
+
+  // Function to toggle expanded view (in-page maximized)
+  const toggleExpandedView = (chartType) => {
+    if (expandedChart === chartType) {
+      setExpandedChart(null);
+    } else {
+      setExpandedChart(chartType);
+    }
   };
 
   // Helper function to validate date format
@@ -714,7 +704,6 @@ function VariableView() {
       } else if (containerRef.current.msRequestFullscreen) { /* IE11 */
         containerRef.current.msRequestFullscreen();
       }
-      setIsFullscreen(true);
     } else {
       // Exit fullscreen
       if (document.exitFullscreen) {
@@ -724,7 +713,6 @@ function VariableView() {
       } else if (document.msExitFullscreen) { /* IE11 */
         document.msExitFullscreen();
       }
-      setIsFullscreen(false);
     }
   };
 
@@ -754,6 +742,213 @@ function VariableView() {
           )}
         </button>
       </header>
+
+      {/* Expanded View Chart Overlay */}
+      {expandedChart && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-2xl w-[98vw] h-[95vh] flex flex-col p-3 relative">
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="text-lg font-semibold">
+                {expandedChart === 'main' ? (
+                  selectedVariables.length === 1
+                    ? variables.find((v) => v.value === selectedVariables[0]).label
+                    : 'Selected Variables Comparison'
+                ) : 'Moving Average Lines'}
+              </h2>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => resetZoom(expandedChart === 'main' ? mainChartRef : maChartRef)}
+                  className="flex items-center justify-center p-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
+                  title="Reset Zoom"
+                  aria-label="Reset Zoom"
+                >
+                  <RefreshIcon className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => toggleExpandedView(null)}
+                  className="flex items-center justify-center p-2 bg-red-500 text-white rounded-md hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-300 w-8 h-8"
+                  title="Close Expanded View"
+                  aria-label="Close Expanded View"
+                >
+                  <XIcon className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex-grow">
+              {expandedChart === 'main' ? (
+                <Line
+                  ref={mainChartRef}
+                  data={chartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'top',
+                        labels: {
+                          color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                        },
+                      },
+                      title: {
+                        display: true,
+                        text:
+                          selectedVariables.length === 1
+                            ? variables.find((v) => v.value === selectedVariables[0]).label
+                            : 'Selected Variables Comparison',
+                        color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                      },
+                      zoom: {
+                        pan: {
+                          enabled: true,
+                          mode: 'x',
+                          modifierKey: 'shift',
+                        },
+                        zoom: {
+                          wheel: {
+                            enabled: true,
+                            speed: 0.02,
+                            sensitivity: 0.02,
+                          },
+                          pinch: {
+                            enabled: true,
+                          },
+                          drag: {
+                            enabled: true,
+                            backgroundColor: isDarkMode ? 'rgba(128,128,128,0.3)' : 'rgba(225,225,225,0.3)',
+                            borderColor: isDarkMode ? 'rgba(128,128,128)' : 'rgba(225,225,225)',
+                            borderWidth: 1,
+                            threshold: 10,
+                          },
+                          mode: 'x',
+                        },
+                      },
+                    },
+                    scales: selectedVariables.length > 1
+                      ? selectedVariables.reduce((acc, variable, index) => {
+                        acc[`y-axis-${index}`] = {
+                          type: 'linear',
+                          position: index % 2 === 0 ? 'left' : 'right',
+                          grid: {
+                            drawOnChartArea: index === 0,
+                            color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                          },
+                          title: {
+                            display: true,
+                            text: variables.find((v) => v.value === variable).label,
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                          ticks: {
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                        };
+                        return acc;
+                      }, {})
+                      : {
+                        y: {
+                          title: {
+                            display: true,
+                            text: variables.find((v) => v.value === selectedVariables[0]).label,
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                          ticks: {
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                          beginAtZero: false,
+                          grid: {
+                            color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                          },
+                        },
+                      },
+                  }}
+                />
+              ) : (
+                <Line
+                  ref={maChartRef}
+                  data={movingAverageChartData}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: 'top',
+                        labels: {
+                          color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                        },
+                      },
+                      title: {
+                        display: true,
+                        text: 'Moving Average Lines',
+                        color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                      },
+                      zoom: {
+                        pan: {
+                          enabled: true,
+                          mode: 'x',
+                          modifierKey: 'shift',
+                        },
+                        zoom: {
+                          wheel: {
+                            enabled: true,
+                            speed: 0.1,
+                            sensitivity: 0.1,
+                          },
+                          pinch: {
+                            enabled: true,
+                          },
+                          drag: {
+                            enabled: true,
+                            backgroundColor: isDarkMode ? 'rgba(128,128,128,0.3)' : 'rgba(225,225,225,0.3)',
+                            borderColor: isDarkMode ? 'rgba(128,128,128)' : 'rgba(225,225,225)',
+                            borderWidth: 1,
+                            threshold: 10,
+                          },
+                          mode: 'x',
+                        },
+                      },
+                    },
+                    scales: selectedVariables.length > 1
+                      ? selectedVariables.reduce((acc, variable, index) => {
+                        acc[`y-axis-${index}`] = {
+                          type: 'linear',
+                          position: index % 2 === 0 ? 'left' : 'right',
+                          grid: {
+                            drawOnChartArea: index === 0,
+                            color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                          },
+                          title: {
+                            display: true,
+                            text: variables.find((v) => v.value === variable).label,
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                          ticks: {
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                        };
+                        return acc;
+                      }, {})
+                      : {
+                        y: {
+                          title: {
+                            display: true,
+                            text: variables.find((v) => v.value === selectedVariables[0]).label,
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                          ticks: {
+                            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+                          },
+                          beginAtZero: false,
+                          grid: {
+                            color: isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)',
+                          },
+                        },
+                      },
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Layout */}
       <div className="flex flex-col md:flex-row flex-1">
@@ -1017,6 +1212,15 @@ function VariableView() {
                       <RefreshIcon className="h-4 w-4" />
                     </button>
                     <button
+                      onClick={() => toggleExpandedView('main')}
+                      className="flex items-center justify-center p-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-300 w-8 h-8"
+                      disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
+                      title="Expand View"
+                      aria-label="Expand View"
+                    >
+                      <ArrowsExpandIcon className="h-4 w-4" />
+                    </button>
+                    <button
                       onClick={() => toggleFullScreen(mainChartContainerRef)}
                       className="flex items-center justify-center p-2 bg-green-500 text-white rounded-md hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 w-8 h-8"
                       disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
@@ -1036,17 +1240,7 @@ function VariableView() {
                     </button>
                   </div>
                 </div>
-                <div className="h-[500px] relative" ref={mainChartContainerRef}>
-                  {isFullscreen && document.fullscreenElement === mainChartContainerRef.current && (
-                    <button
-                      onClick={() => resetZoom(mainChartRef)}
-                      className="absolute top-4 left-4 flex items-center justify-center p-2 bg-gray-800 bg-opacity-90 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-10 h-10 z-50 shadow-lg"
-                      title="Reset Zoom"
-                      aria-label="Reset Zoom"
-                    >
-                      <RefreshIcon className="h-6 w-6" />
-                    </button>
-                  )}
+                <div className="h-[500px]" ref={mainChartContainerRef}>
                   {loading && !showOnlyMovingAverage ? (
                     <div className="flex justify-center items-center h-full">
                       <p>Loading...</p>
@@ -1177,6 +1371,15 @@ function VariableView() {
                         <RefreshIcon className="h-4 w-4" />
                       </button>
                       <button
+                        onClick={() => toggleExpandedView('ma')}
+                        className="flex items-center justify-center p-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 dark:bg-purple-600 dark:hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-colors duration-300 w-8 h-8"
+                        disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
+                        title="Expand View"
+                        aria-label="Expand View"
+                      >
+                        <ArrowsExpandIcon className="h-4 w-4" />
+                      </button>
+                      <button
                         onClick={() => toggleFullScreen(maChartContainerRef)}
                         className="flex items-center justify-center p-2 bg-green-500 text-white rounded-md hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 w-8 h-8"
                         disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
@@ -1196,17 +1399,7 @@ function VariableView() {
                       </button>
                     </div>
                   </div>
-                  <div className="h-[500px] relative" ref={maChartContainerRef}>
-                    {isFullscreen && document.fullscreenElement === maChartContainerRef.current && (
-                      <button
-                        onClick={() => resetZoom(maChartRef)}
-                        className="absolute top-4 left-4 flex items-center justify-center p-2 bg-gray-800 bg-opacity-90 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-10 h-10 z-50 shadow-lg"
-                        title="Reset Zoom"
-                        aria-label="Reset Zoom"
-                      >
-                        <RefreshIcon className="h-6 w-6" />
-                      </button>
-                    )}
+                  <div className="h-[500px]" ref={maChartContainerRef}>
                     {loading ? (
                       <div className="flex justify-center items-center h-full">
                         <p>Loading...</p>

@@ -11,8 +11,8 @@ import { Link } from 'react-router-dom';
 // Import the logo image
 import blackHoleLogo from '../assets/black_hole.jpg';
 
-// Fix heroicons import
-import { ArrowLeftIcon, SunIcon, MoonIcon, RefreshIcon } from '@heroicons/react/solid';
+// Fix heroicons import and add ArrowsExpandIcon
+import { ArrowLeftIcon, SunIcon, MoonIcon, RefreshIcon, DownloadIcon, ArrowsExpandIcon } from '@heroicons/react/solid';
 
 // Register Zoom Plugin
 Chart.register(Zoom);
@@ -61,6 +61,9 @@ function TelescopeView() {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme === 'dark' ? true : false;
   });
+
+  // Add state to track fullscreen status
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Update localStorage when state changes
   useEffect(() => {
@@ -363,11 +366,75 @@ function TelescopeView() {
 
   // Add chart reference for zoom reset
   const chartRef = useRef(null);
+  const chartContainerRef = useRef(null);
   
+  // Add a function to toggle fullscreen
+  const toggleFullScreen = () => {
+    if (!chartContainerRef || !chartContainerRef.current) return;
+    
+    if (!document.fullscreenElement) {
+      // Enter fullscreen
+      if (chartContainerRef.current.requestFullscreen) {
+        chartContainerRef.current.requestFullscreen();
+      } else if (chartContainerRef.current.webkitRequestFullscreen) { /* Safari */
+        chartContainerRef.current.webkitRequestFullscreen();
+      } else if (chartContainerRef.current.msRequestFullscreen) { /* IE11 */
+        chartContainerRef.current.msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) { /* Safari */
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) { /* IE11 */
+        document.msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  };
+
+  // Add event listener for fullscreen change
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
+
   // Add a function to reset zoom
   const resetZoom = () => {
     if (chartRef && chartRef.current) {
       chartRef.current.resetZoom();
+    }
+  };
+
+  // Add a function to export chart as PNG
+  const exportChartAsPNG = () => {
+    if (chartRef && chartRef.current) {
+      // Get the chart canvas element
+      const canvas = chartRef.current.canvas;
+
+      // Convert canvas to data URL
+      const image = canvas.toDataURL('image/png', 1.0);
+
+      // Create download link
+      const link = document.createElement('a');
+      link.download = `telescope-comparison-${new Date().toISOString().slice(0, 10)}.png`;
+      link.href = image;
+      link.click();
     }
   };
 
@@ -524,17 +591,47 @@ function TelescopeView() {
                   <h2 className="text-lg font-semibold">
                     {variables.find(v => v.value === selectedVariable).label} Across Selected Telescopes
                   </h2>
-                  <button
-                    onClick={resetZoom}
-                    className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
-                    disabled={Object.keys(telescopeData).length === 0}
-                    title="Reset Zoom"
-                  >
-                    <RefreshIcon className="h-4 w-4 mr-1" />
-                    Reset Zoom
-                  </button>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={resetZoom}
+                      className="flex items-center justify-center p-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
+                      disabled={Object.keys(telescopeData).length === 0}
+                      title="Reset Zoom"
+                      aria-label="Reset Zoom"
+                    >
+                      <RefreshIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={toggleFullScreen}
+                      className="flex items-center justify-center p-2 bg-green-500 text-white rounded-md hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 w-8 h-8"
+                      disabled={Object.keys(telescopeData).length === 0}
+                      title="Full Screen"
+                      aria-label="Full Screen"
+                    >
+                      <ArrowsExpandIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={exportChartAsPNG}
+                      className="flex items-center justify-center p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
+                      disabled={Object.keys(telescopeData).length === 0}
+                      title="Export as PNG"
+                      aria-label="Export as PNG"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-                <div className="h-[500px]">
+                <div className="h-[500px] relative" ref={chartContainerRef}>
+                  {isFullscreen && document.fullscreenElement === chartContainerRef.current && (
+                    <button
+                      onClick={resetZoom}
+                      className="absolute top-4 left-4 flex items-center justify-center p-2 bg-gray-800 bg-opacity-90 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-10 h-10 z-50 shadow-lg"
+                      title="Reset Zoom"
+                      aria-label="Reset Zoom"
+                    >
+                      <RefreshIcon className="h-6 w-6" />
+                    </button>
+                  )}
                   {isLoading ? (
                     <div className="flex justify-center items-center h-full">
                       <p>Loading...</p>

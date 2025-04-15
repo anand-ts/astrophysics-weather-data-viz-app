@@ -11,8 +11,8 @@ import { Link } from 'react-router-dom';
 // Import the logo image
 import blackHoleLogo from '../assets/black_hole.jpg';
 
-// Fix heroicons import with correct component names
-import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon } from '@heroicons/react/solid';
+// Fix heroicons import with correct component names and add ExpandIcon
+import { ArrowLeftIcon, SunIcon, MoonIcon, DownloadIcon, RefreshIcon, ArrowsExpandIcon } from '@heroicons/react/solid';
 
 // Add these imports at the top
 import { linearInterpolation, detectAnomalies } from '../utils/dataProcessing';
@@ -80,15 +80,20 @@ function VariableView() {
     }
   });
 
-  // Refs for accessing chart instances
+  // Refs for accessing chart instances and containers
   const mainChartRef = useRef(null);
   const maChartRef = useRef(null);
+  const mainChartContainerRef = useRef(null);
+  const maChartContainerRef = useRef(null);
 
   // Dark mode state
   const [isDarkMode, setIsDarkMode] = useState(() => {
     const savedTheme = localStorage.getItem('theme');
     return savedTheme === 'dark' ? true : false;
   });
+
+  // Add state to track fullscreen status
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // Update localStorage when state changes
   useEffect(() => {
@@ -149,6 +154,25 @@ function VariableView() {
     }
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
+
+  // Add event listener for fullscreen change
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, []);
 
   // Toggle dark mode
   const toggleDarkMode = () => {
@@ -677,6 +701,33 @@ function VariableView() {
     }
   };
 
+  // Function to toggle fullscreen for a chart container
+  const toggleFullScreen = (containerRef) => {
+    if (!containerRef || !containerRef.current) return;
+
+    if (!document.fullscreenElement) {
+      // Enter fullscreen
+      if (containerRef.current.requestFullscreen) {
+        containerRef.current.requestFullscreen();
+      } else if (containerRef.current.webkitRequestFullscreen) { /* Safari */
+        containerRef.current.webkitRequestFullscreen();
+      } else if (containerRef.current.msRequestFullscreen) { /* IE11 */
+        containerRef.current.msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+    } else {
+      // Exit fullscreen
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      } else if (document.webkitExitFullscreen) { /* Safari */
+        document.webkitExitFullscreen();
+      } else if (document.msExitFullscreen) { /* IE11 */
+        document.msExitFullscreen();
+      }
+      setIsFullscreen(false);
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {/* Header */}
@@ -958,25 +1009,44 @@ function VariableView() {
                   <div className="flex space-x-2">
                     <button
                       onClick={() => resetZoom(mainChartRef)}
-                      className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                      className="flex items-center justify-center p-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
                       disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                       title="Reset Zoom"
+                      aria-label="Reset Zoom"
                     >
-                      <RefreshIcon className="h-4 w-4 mr-1" />
-                      Reset Zoom
+                      <RefreshIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => toggleFullScreen(mainChartContainerRef)}
+                      className="flex items-center justify-center p-2 bg-green-500 text-white rounded-md hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 w-8 h-8"
+                      disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
+                      title="Full Screen"
+                      aria-label="Full Screen"
+                    >
+                      <ArrowsExpandIcon className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => exportChartAsPNG(mainChartRef, 'weather-data-chart')}
-                      className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                      className="flex items-center justify-center p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
                       disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                       title="Export as PNG"
+                      aria-label="Export as PNG"
                     >
-                      <DownloadIcon className="h-4 w-4 mr-1" />
-                      Export PNG
+                      <DownloadIcon className="h-4 w-4" />
                     </button>
                   </div>
                 </div>
-                <div className="h-[500px]">
+                <div className="h-[500px] relative" ref={mainChartContainerRef}>
+                  {isFullscreen && document.fullscreenElement === mainChartContainerRef.current && (
+                    <button
+                      onClick={() => resetZoom(mainChartRef)}
+                      className="absolute top-4 left-4 flex items-center justify-center p-2 bg-gray-800 bg-opacity-90 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-10 h-10 z-50 shadow-lg"
+                      title="Reset Zoom"
+                      aria-label="Reset Zoom"
+                    >
+                      <RefreshIcon className="h-6 w-6" />
+                    </button>
+                  )}
                   {loading && !showOnlyMovingAverage ? (
                     <div className="flex justify-center items-center h-full">
                       <p>Loading...</p>
@@ -1099,25 +1169,44 @@ function VariableView() {
                     <div className="flex space-x-2">
                       <button
                         onClick={() => resetZoom(maChartRef)}
-                        className="flex items-center px-3 py-1 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                        className="flex items-center justify-center p-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 dark:bg-gray-600 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
                         disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                         title="Reset Zoom"
+                        aria-label="Reset Zoom"
                       >
-                        <RefreshIcon className="h-4 w-4 mr-1" />
-                        Reset Zoom
+                        <RefreshIcon className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => toggleFullScreen(maChartContainerRef)}
+                        className="flex items-center justify-center p-2 bg-green-500 text-white rounded-md hover:bg-green-600 dark:bg-green-600 dark:hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-300 w-8 h-8"
+                        disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
+                        title="Full Screen"
+                        aria-label="Full Screen"
+                      >
+                        <ArrowsExpandIcon className="h-4 w-4" />
                       </button>
                       <button
                         onClick={() => exportChartAsPNG(maChartRef, 'moving-average-chart')}
-                        className="flex items-center px-3 py-1 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300"
+                        className="flex items-center justify-center p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
                         disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
                         title="Export as PNG"
+                        aria-label="Export as PNG"
                       >
-                        <DownloadIcon className="h-4 w-4 mr-1" />
-                        Export PNG
+                        <DownloadIcon className="h-4 w-4" />
                       </button>
                     </div>
                   </div>
-                  <div className="h-[500px]">
+                  <div className="h-[500px] relative" ref={maChartContainerRef}>
+                    {isFullscreen && document.fullscreenElement === maChartContainerRef.current && (
+                      <button
+                        onClick={() => resetZoom(maChartRef)}
+                        className="absolute top-4 left-4 flex items-center justify-center p-2 bg-gray-800 bg-opacity-90 text-white rounded-md hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-10 h-10 z-50 shadow-lg"
+                        title="Reset Zoom"
+                        aria-label="Reset Zoom"
+                      >
+                        <RefreshIcon className="h-6 w-6" />
+                      </button>
+                    )}
                     {loading ? (
                       <div className="flex justify-center items-center h-full">
                         <p>Loading...</p>

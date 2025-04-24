@@ -1,0 +1,32 @@
+{
+  "name": "data_stream",
+  "version": "1.0.0",
+  "description": "Weather data visualization for telescopes",
+  "main": "index.js",
+  "scripts": {
+    "start": "cd backend && node server.js",
+    "backend": "cd backend && node server.js",
+    "frontend": "cd frontend && npm start",
+    "install-all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "apollo-server-express": "^3.13.0",
+    "cors": "^2.8.5",
+    "date-fns": "^4.1.0",
+    "eslint-plugin-react-hooks": "^6.0.0-canary-1d6c8168-20250411",
+    "express": "^4.21.0",
+    "graphql": "^16.9.0",
+    "mongoose": "^8.6.2",
+    "node-cron": "^3.0.3",
+    "react-confetti": "^6.1.0",
+    "react-datepicker": "^8.3.0",
+    "react-router-dom": "^7.4.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

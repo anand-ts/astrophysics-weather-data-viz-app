@@ -3,10 +3,12 @@ import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from '../queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
-// Fix the zoom plugin import
 import { Chart } from 'chart.js';
 import Zoom from 'chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js';
 import { Link } from 'react-router-dom';
+// add Mantine + date-fns
+import { DatePicker } from '@mantine/dates';
+import { format } from 'date-fns';
 
 // Import the logo image
 import blackHoleLogo from '../assets/black_hole.jpg';
@@ -36,13 +38,15 @@ function VariableView() {
     const saved = localStorage.getItem('variableView_movingAverageWindow');
     return saved ? parseInt(saved, 10) : 5;
   });
-  const [startDate, setStartDate] = useState(() => {
-    return localStorage.getItem('variableView_startDate') || '';
+  // add DateRangePicker state
+  const [dateRange, setDateRange] = useState(() => {
+    const saved = localStorage.getItem('variableView_dateRange');
+    if (saved) {
+      const [s, e] = JSON.parse(saved);
+      return [s ? new Date(s) : null, e ? new Date(e) : null];
+    }
+    return [null, null];
   });
-  const [endDate, setEndDate] = useState(() => {
-    return localStorage.getItem('variableView_endDate') || '';
-  });
-  const [dateError, setDateError] = useState({ startDate: false, endDate: false });
   const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(() => {
     return localStorage.getItem('variableView_showOnlyMovingAverage') === 'true';
   });
@@ -113,14 +117,6 @@ function VariableView() {
   }, [movingAverageWindow]);
 
   useEffect(() => {
-    localStorage.setItem('variableView_startDate', startDate);
-  }, [startDate]);
-
-  useEffect(() => {
-    localStorage.setItem('variableView_endDate', endDate);
-  }, [endDate]);
-
-  useEffect(() => {
     localStorage.setItem('variableView_showOnlyMovingAverage', showOnlyMovingAverage);
   }, [showOnlyMovingAverage]);
 
@@ -143,6 +139,10 @@ function VariableView() {
   useEffect(() => {
     localStorage.setItem('variableView_anomalyThreshold', anomalyThreshold);
   }, [anomalyThreshold]);
+
+  useEffect(() => {
+    localStorage.setItem('variableView_dateRange', JSON.stringify(dateRange));
+  }, [dateRange]);
 
   // Update the HTML element's class based on dark mode state
   useEffect(() => {
@@ -195,31 +195,23 @@ function VariableView() {
   // Use either fresh data or cached data
   const effectiveData = data || cachedData;
 
-  useEffect(() => {
-    // Validate dates but do not refetch automatically
-    const isStartDateValid = startDate ? isValidDateFormat(startDate) : false;
-    const isEndDateValid = endDate ? isValidDateFormat(endDate) : false;
-
-    setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
-  }, [startDate, endDate, isValidDateFormat]);
-
   // Re-fetch data when parameters change
   useEffect(() => {
     // Only run if all required parameters are valid
-    const isStartDateValid = startDate && isValidDateFormat(startDate);
-    const isEndDateValid = endDate && isValidDateFormat(endDate);
+    const isStartDateValid = dateRange[0] && isValidDateFormat(format(dateRange[0], 'yyyy-MM-dd HH:mm:ss'));
+    const isEndDateValid = dateRange[1] && isValidDateFormat(format(dateRange[1], 'yyyy-MM-dd HH:mm:ss'));
 
     if (isStartDateValid && isEndDateValid && cachedData === null) {
       getWeatherData({
         variables: {
           collection: selectedCollection,
           limit: 10000,
-          startDate, // Add missing comma here
-          endDate,
+          startDate: format(dateRange[0], 'yyyy-MM-dd HH:mm:ss'),
+          endDate: format(dateRange[1], 'yyyy-MM-dd HH:mm:ss'),
         }
       });
     }
-  }, [startDate, endDate, selectedCollection, getWeatherData, isValidDateFormat, cachedData]);
+  }, [dateRange, selectedCollection, getWeatherData, isValidDateFormat, cachedData]);
 
   const handleVariableChange = (event) => {
     const { value, checked } = event.target;
@@ -1128,64 +1120,36 @@ function VariableView() {
             </div>
           </div>
 
-          {/* Date Range Selector */}
+          {/* Date range picker */}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Select Date Range</h3>
-            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date:</label>
-                <input
-                  type="text"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className={`mt-1 block w-full border ${dateError.startDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
-                  placeholder="YYYY-MM-DD HH:mm:ss"
-                  aria-label="Start Date"
-                />
-                {/* Validation Message */}
-                {startDate && dateError.startDate && (
-                  <p className="text-red-500 text-sm mt-1">Invalid date format.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">End Date:</label>
-                <input
-                  type="text"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className={`mt-1 block w-full border ${dateError.endDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
-                  placeholder="YYYY-MM-DD HH:mm:ss"
-                  aria-label="End Date"
-                />
-                {/* Validation Message */}
-                {endDate && dateError.endDate && (
-                  <p className="text-red-500 text-sm mt-1">Invalid date format.</p>
-                )}
-              </div>
-              {/* Apply Button */}
-              <button
-                onClick={() => {
-                  if (startDate && endDate && !dateError.startDate && !dateError.endDate) {
-                    getWeatherData({
-                      variables: {
-                        collection: selectedCollection, // Pass selected collection
-                        limit: 10000,
-                        startDate: startDate,
-                        endDate: endDate,
-                      },
-                    });
-                    setShowOnlyMovingAverage(false); // Hide additional graph when new data is fetched
-                  }
-                }}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 flex items-center justify-center"
-                disabled={!startDate || !endDate || dateError.startDate || dateError.endDate}
-                aria-label="Apply Date Range"
-              >
-                {loading ? 'Loading...' : 'Apply'}
-              </button>
-            </form>
+            <DatePicker
+              type="range"
+              value={dateRange}
+              onChange={setDateRange}
+              clearable
+              withTime
+              valueFormat="YYYY-MM-DD HH:mm:ss"
+            />
+            <button
+              onClick={() => {
+                if (dateRange[0] && dateRange[1]) {
+                  getWeatherData({
+                    variables: {
+                      collection: selectedCollection,
+                      limit: 10000,
+                      startDate: format(dateRange[0], 'yyyy-MM-dd HH:mm:ss'),
+                      endDate:   format(dateRange[1], 'yyyy-MM-dd HH:mm:ss'),
+                    },
+                  });
+                  setShowOnlyMovingAverage(false); // Hide additional graph when new data is fetched
+                }
+              }}
+              disabled={!dateRange[0] || !dateRange[1]}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              {loading ? 'Loading...' : 'Apply'}
+            </button>
           </div>
         </div>
 

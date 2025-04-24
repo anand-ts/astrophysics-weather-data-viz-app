@@ -1,22 +1,18 @@
-// src/index.js
 import React from 'react';
-import ReactDOM from 'react-dom/client'; 
+import ReactDOM from 'react-dom/client';
+import { MantineProvider } from '@mantine/core';
 import './index.css';
 import App from './App';
 import { ApolloProvider } from '@apollo/client';
 import client from './apolloClient';
 
-// Locate the root element in your HTML
-const container = document.getElementById('root');
-
-// Create a root.
-const root = ReactDOM.createRoot(container);
-
-// Initial render: Render the App component wrapped with ApolloProvider
+const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
   <React.StrictMode>
-    <ApolloProvider client={client}>  
-      <App />
-    </ApolloProvider>
+    <MantineProvider withGlobalStyles withNormalizeCSS>
+      <ApolloProvider client={client}>
+        <App />
+      </ApolloProvider>
+    </MantineProvider>
   </React.StrictMode>
 );

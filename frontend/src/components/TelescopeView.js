@@ -3,16 +3,22 @@ import { useLazyQuery } from '@apollo/client';
 import { GET_WEATHER_DATA } from '../queries';
 import { Line } from 'react-chartjs-2';
 import 'chart.js/auto';
-// Fix the zoom plugin import
 import { Chart } from 'chart.js';
 import Zoom from 'chartjs-plugin-zoom/dist/chartjs-plugin-zoom.min.js';
 import { Link } from 'react-router-dom';
-
-// Import the logo image
+// add Mantine + date-fns
+import { DatePicker } from '@mantine/dates';
+import { format } from 'date-fns';
 import blackHoleLogo from '../assets/black_hole.jpg';
-
-// Fix heroicons import and add new icons
-import { ArrowLeftIcon, SunIcon, MoonIcon, RefreshIcon, DownloadIcon, ArrowsExpandIcon, XIcon } from '@heroicons/react/solid';
+import {
+  ArrowLeftIcon,
+  SunIcon,
+  MoonIcon,
+  RefreshIcon,
+  DownloadIcon,
+  ArrowsExpandIcon,
+  XIcon,
+} from '@heroicons/react/solid';
 
 // Register Zoom Plugin
 Chart.register(Zoom);
@@ -33,17 +39,10 @@ function TelescopeView() {
     const saved = localStorage.getItem('telescopeView_movingAverageWindow');
     return saved ? parseInt(saved, 10) : 5;
   });
-  const [startDate, setStartDate] = useState(() => {
-    return localStorage.getItem('telescopeView_startDate') || '';
-  });
-  const [endDate, setEndDate] = useState(() => {
-    return localStorage.getItem('telescopeView_endDate') || '';
-  });
-  const [dateError, setDateError] = useState({ startDate: false, endDate: false });
   const [showOnlyMovingAverage, setShowOnlyMovingAverage] = useState(() => {
     return localStorage.getItem('telescopeView_showOnlyMovingAverage') === 'true';
   });
-  
+
   // New state to store all telescope data
   const [telescopeData, setTelescopeData] = useState(() => {
     const saved = localStorage.getItem('telescopeView_telescopeData');
@@ -83,14 +82,6 @@ function TelescopeView() {
   }, [movingAverageWindow]);
 
   useEffect(() => {
-    localStorage.setItem('telescopeView_startDate', startDate);
-  }, [startDate]);
-
-  useEffect(() => {
-    localStorage.setItem('telescopeView_endDate', endDate);
-  }, [endDate]);
-
-  useEffect(() => {
     localStorage.setItem('telescopeView_showOnlyMovingAverage', showOnlyMovingAverage);
   }, [showOnlyMovingAverage]);
 
@@ -118,69 +109,64 @@ function TelescopeView() {
     setIsDarkMode(!isDarkMode);
   };
 
-  // Helper function to validate date format
-  const isValidDateFormat = useCallback((dateString) => {
-    const regex = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
-    return regex.test(dateString);
-  }, []);
+  // add DateRangePicker state
+  const [dateRange, setDateRange] = useState(() => {
+    const saved = localStorage.getItem('telescopeView_dateRange');
+    if (saved) {
+      const [s, e] = JSON.parse(saved);
+      return [s ? new Date(s) : null, e ? new Date(e) : null];
+    }
+    return [null, null];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('telescopeView_dateRange', JSON.stringify(dateRange));
+  }, [dateRange]);
 
   // Initialize useLazyQuery
   const [getWeatherData, { error: queryError }] = useLazyQuery(GET_WEATHER_DATA, {
     fetchPolicy: 'network-only',
   });
 
-  useEffect(() => {
-    // Validate dates but do not refetch automatically
-    const isStartDateValid = startDate ? isValidDateFormat(startDate) : false;
-    const isEndDateValid = endDate ? isValidDateFormat(endDate) : false;
-
-    setDateError({ startDate: !isStartDateValid, endDate: !isEndDateValid });
-  }, [startDate, endDate, isValidDateFormat]);
-
   // Wrap the fetchTelescopeData function in useCallback before the useEffect
   const fetchTelescopeData = useCallback(async () => {
-    if (startDate && endDate && !dateError.startDate && !dateError.endDate && selectedTelescopes.length > 0) {
+    const [start, end] = dateRange;
+    if (start && end && selectedTelescopes.length > 0) {
       setIsLoading(true);
+      const formattedStart = format(start, 'yyyy-MM-dd HH:mm:ss');
+      const formattedEnd   = format(end,   'yyyy-MM-dd HH:mm:ss');
       const newData = {};
-      
-      // Fetch data for each selected telescope
       for (const telescope of selectedTelescopes) {
         try {
           const result = await getWeatherData({
             variables: {
               collection: telescope,
               limit: 10000,
-              startDate: startDate,
-              endDate: endDate,
-            }
+              startDate: formattedStart,
+              endDate:   formattedEnd,
+            },
           });
-          
-          if (result.data && result.data.getWeatherData) {
+          if (result.data?.getWeatherData) {
             newData[telescope] = result.data.getWeatherData;
           }
         } catch (err) {
-          console.error(`Error fetching data for ${telescope}:`, err);
+          console.error(`Error fetching ${telescope}`, err);
         }
       }
-      
       setTelescopeData(newData);
       setIsLoading(false);
       setShowOnlyMovingAverage(false);
     }
-  }, [selectedTelescopes, startDate, endDate, dateError, getWeatherData]);
+  }, [selectedTelescopes, dateRange, getWeatherData]);
 
   // Re-fetch data on page load if we have valid parameters
   useEffect(() => {
     if (
-      startDate && 
-      endDate && 
-      isValidDateFormat(startDate) && 
-      isValidDateFormat(endDate) && 
       selectedTelescopes.length > 0
     ) {
       fetchTelescopeData();
     }
-  }, [startDate, endDate, selectedTelescopes, fetchTelescopeData, isValidDateFormat]);
+  }, [selectedTelescopes, fetchTelescopeData]);
 
   const handleTelescopeChange = (event) => {
     const { value, checked } = event.target;
@@ -623,50 +609,24 @@ function TelescopeView() {
             </div>
           )}
 
-          {/* Date Range Selector */}
+          {/* Date range picker */}
           <div className="mt-6">
             <h3 className="text-lg font-semibold mb-2">Select Date Range</h3>
-            <form onSubmit={(e) => e.preventDefault()} className="flex flex-col space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Start Date:</label>
-                <input
-                  type="text"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className={`mt-1 block w-full border ${dateError.startDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
-                  placeholder="YYYY-MM-DD HH:mm:ss"
-                  aria-label="Start Date"
-                />
-                {startDate && dateError.startDate && (
-                  <p className="text-red-500 text-sm mt-1">Invalid date format.</p>
-                )}
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">End Date:</label>
-                <input
-                  type="text"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className={`mt-1 block w-full border ${dateError.endDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                    } rounded-md shadow-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-indigo-500 focus:border-indigo-500 dark:focus:ring-indigo-600 dark:focus:border-indigo-600 transition-colors duration-300`}
-                  placeholder="YYYY-MM-DD HH:mm:ss"
-                  aria-label="End Date"
-                />
-                {endDate && dateError.endDate && (
-                  <p className="text-red-500 text-sm mt-1">Invalid date format.</p>
-                )}
-              </div>
-              {/* Apply Button */}
-              <button
-                onClick={fetchTelescopeData}
-                className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 flex items-center justify-center"
-                disabled={!startDate || !endDate || dateError.startDate || dateError.endDate || selectedTelescopes.length === 0}
-                aria-label="Apply Date Range"
-              >
-                {isLoading ? 'Loading...' : 'Apply'}
-              </button>
-            </form>
+            <DatePicker
+              type="range"
+              value={dateRange}
+              onChange={setDateRange}
+              clearable
+              withTime
+              valueFormat="YYYY-MM-DD HH:mm:ss"
+            />
+            <button
+              onClick={fetchTelescopeData}
+              disabled={!dateRange[0] || !dateRange[1] || selectedTelescopes.length === 0}
+              className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
+            >
+              {isLoading ? 'Loading...' : 'Apply'}
+            </button>
           </div>
         </div>
 

@@ -403,6 +403,25 @@ function TelescopeView() {
     }
   };
 
+  // Add a function to export selected telescope data as CSV
+  const exportDataAsCSV = () => {
+    // Build CSV rows: collection,wdatetime,value
+    const rows = [`collection,wdatetime,${selectedVariable}`];
+    selectedTelescopes.forEach((tel) => {
+      (telescopeData[tel] || []).forEach(entry => {
+        rows.push(`${tel},${entry.wdatetime},${entry[selectedVariable]}`);
+      });
+    });
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `telescope-data-${selectedVariable}-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // Add a function to toggle expanded view
   const toggleExpandedView = () => {
     setIsExpanded(!isExpanded);
@@ -674,6 +693,15 @@ function TelescopeView() {
                       disabled={Object.keys(telescopeData).length === 0}
                       title="Export as PNG"
                       aria-label="Export as PNG"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={exportDataAsCSV}
+                      className="flex items-center justify-center p-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 dark:bg-teal-600 dark:hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors duration-300 w-8 h-8"
+                      disabled={Object.keys(telescopeData).length === 0}
+                      title="Export CSV"
+                      aria-label="Export CSV"
                     >
                       <DownloadIcon className="h-4 w-4" />
                     </button>

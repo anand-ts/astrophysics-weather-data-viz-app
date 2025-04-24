@@ -708,6 +708,25 @@ function VariableView() {
     }
   };
 
+  // Add function to export selected variable data as CSV
+  const exportDataAsCSV = () => {
+    if (!effectiveData?.getWeatherData) return;
+    const header = ['wdatetime', ...selectedVariables];
+    const rows = [ header.join(',') ];
+    effectiveData.getWeatherData.forEach(entry => {
+      const row = [ entry.wdatetime, ...selectedVariables.map(v => entry[v]) ];
+      rows.push(row.join(','));
+    });
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `variable-data-${selectedVariables.join('-')}-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
       {/* Header */}
@@ -1196,9 +1215,18 @@ function VariableView() {
                     <button
                       onClick={() => exportChartAsPNG(mainChartRef, 'weather-data-chart')}
                       className="flex items-center justify-center p-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-300 w-8 h-8"
-                      disabled={!effectiveData || !effectiveData.getWeatherData || effectiveData.getWeatherData.length === 0}
+                      disabled={!effectiveData?.getWeatherData || effectiveData.getWeatherData.length === 0}
                       title="Export as PNG"
                       aria-label="Export as PNG"
+                    >
+                      <DownloadIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={exportDataAsCSV}
+                      className="flex items-center justify-center p-2 bg-teal-500 text-white rounded-md hover:bg-teal-600 dark:bg-teal-600 dark:hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 transition-colors duration-300 w-8 h-8"
+                      disabled={!effectiveData?.getWeatherData || effectiveData.getWeatherData.length === 0}
+                      title="Export CSV"
+                      aria-label="Export CSV"
                     >
                       <DownloadIcon className="h-4 w-4" />
                     </button>
